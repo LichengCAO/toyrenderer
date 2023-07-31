@@ -39,6 +39,7 @@ void Screen::create() {
 	std::cout << std::endl;
 }
 void Screen::draw(ShaderProgram* shader) {
+	if (debug)fillAttrCheck(shader);
 	int posAttr = shader->findAttrib("vs_pos");
 	int uvAttr = shader->findAttrib("vs_uv");
 	if (posAttr != -1 && useAttrib("vs_pos")) {

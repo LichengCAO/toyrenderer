@@ -79,9 +79,22 @@ void Camera::Reset()
     RecomputeAttributes();
 }
 
+
+void Camera::LookAlong(const glm::vec3& dir) {
+    ref = eye + dir;
+    RecomputeAttributes();
+}
+
 void Camera::RotateAboutUp(float deg)
 {
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, up);
+    ref = ref - eye;
+    ref = glm::vec3(rotation * glm::vec4(ref, 1));
+    ref = ref + eye;
+    RecomputeAttributes();
+}
+void Camera::RotateAboutWorldUp(float deg) {
+    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, world_up);
     ref = ref - eye;
     ref = glm::vec3(rotation * glm::vec4(ref, 1));
     ref = ref + eye;

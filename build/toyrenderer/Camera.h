@@ -31,7 +31,10 @@ public:
 
     void RecomputeAttributes();
 
+    void LookAlong(const glm::vec3& dir);
+    
     void RotateAboutUp(float deg);
+    void RotateAboutWorldUp(float deg);
     void RotateAboutRight(float deg);
 
     void RotateTheta(float deg);

@@ -58,12 +58,15 @@ public:
 	}
 	void run();
 	ShaderProgram* addShader(const char* vertFile, const char* fragFile, ShaderType type);
-	Mesh* loadMesh(const char* objFile);
-	Screen* loadScreen();
-	Texture* loadTexture(const char* texFile);
+	Mesh* addMesh(const char* objFile);
+	Screen* addScreen();
+	Plane* addPlane();
+	Texture* addTexture(const char* texFile);
 	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, unsigned int texNum = 1);
 	Pass* addPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&,FrameBuffer* frameBuf = nullptr);
+	
 	void debugLog()const;
 	friend void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+	friend void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 };
 

@@ -5,4 +5,5 @@ ShadowShader::ShadowShader(const char* vertFile, const char* fragFile):
 	addAttrib("vs_pos");
 	addUniform("u_model");
 	addUniform("u_viewProj");
+	std::cout << std::endl;
 }

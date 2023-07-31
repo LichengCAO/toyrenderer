@@ -1,9 +1,9 @@
 #include "Transform.h"
 void Transform::computeModelMat() {
 	glm::mat4 scale = glm::scale(glm::mat4(), m_scale);
-	glm::mat4 rotateX = glm::rotate(glm::mat4(), m_rot.x, glm::vec3(1, 0, 0));
-	glm::mat4 rotateY = glm::rotate(glm::mat4(), m_rot.y, glm::vec3(0, 1, 0));
-	glm::mat4 rotateZ = glm::rotate(glm::mat4(), m_rot.z, glm::vec3(0, 0, 1));
+	glm::mat4 rotateX = glm::rotate(glm::mat4(), glm::radians(m_rot.x), glm::vec3(1, 0, 0));
+	glm::mat4 rotateY = glm::rotate(glm::mat4(), glm::radians(m_rot.y), glm::vec3(0, 1, 0));
+	glm::mat4 rotateZ = glm::rotate(glm::mat4(), glm::radians(m_rot.z), glm::vec3(0, 0, 1));
 	glm::mat4 trans = glm::translate(glm::mat4(),m_pos);
 	m_modelMat = trans * rotateZ * rotateY * rotateX * scale;
 	m_modelMatInvTr = glm::mat3(glm::transpose(glm::inverse(m_modelMat)));

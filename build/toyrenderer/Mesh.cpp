@@ -63,6 +63,7 @@ void Mesh::create() {
 	std::cout << std::endl;
 }
 void Mesh::draw(ShaderProgram* shader) {
+	if (debug)fillAttrCheck(shader);
 	shader->setUnifMat4("u_model", getModel());
 	shader->setUnifMat3("u_modelInvTr", getModelInvTr());
 	int posAttr = shader->findAttrib("vs_pos");

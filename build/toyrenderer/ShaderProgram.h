@@ -19,7 +19,7 @@ protected:
 	int fragShader;
 	int prog;
 public:
-	bool errorLog = false;
+	bool debug = false;
 	std::unordered_map<std::string, int> m_attribs;
 	std::unordered_map<std::string, int> m_unifs;
 	ShaderProgram(const char* vertFile, const char* fragFile);
@@ -58,4 +58,3 @@ class ShadowShader :
 public:
 	ShadowShader(const char* vertFile, const char* fragFile);
 };
-

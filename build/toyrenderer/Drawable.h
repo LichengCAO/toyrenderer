@@ -21,16 +21,18 @@ protected:
 	virtual void create() = 0;
 	virtual void destroy();
 public:
+	bool debug = false;
 	std::unordered_map<std::string, unsigned int> m_attribs;
 	Drawable();
 	virtual ~Drawable();
-	virtual void draw(ShaderProgram* shader) = 0;
+	virtual void draw(ShaderProgram* shader)=0;
 	void useMe()const;
 	bool useIdx()const;
 	bool useAttrib(const std::string& name)const;
 	unsigned int drawMode()const { return m_drawMode; };
 	int idBufferSize()const { return m_idxBufSize; };
 	void debugLog()const;
+	void fillAttrCheck(ShaderProgram* shader)const;//use for debug
 };
 
 class Screen :

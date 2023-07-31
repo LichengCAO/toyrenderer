@@ -58,3 +58,14 @@ void Drawable::debugLog()const {
 		std::cerr << e << std::endl;
 	}
 }
+void Drawable::fillAttrCheck(ShaderProgram* shader)const {
+	for (auto& p : shader->m_attribs) {
+		const std::string& name = p.first;
+		int id = p.second;
+		bool shaderHasAttr = (id != -1);
+		bool thisHasAttr = (m_attribs.find(name) != m_attribs.end());
+		if (shaderHasAttr && !thisHasAttr) {
+			std::cout << "Object doesn't have " << name << std::endl;
+		}
+	}
+}

@@ -5,4 +5,5 @@ SimplePostShader::SimplePostShader(const char* vertFile, const char* fragFile)
 	addAttrib("vs_pos");
 	addAttrib("vs_uv");
 	addUniform("u_texture");
+	std::cout << std::endl;
 }

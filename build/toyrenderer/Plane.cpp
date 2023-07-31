@@ -49,6 +49,9 @@ void Plane::create() {
 	std::cout << std::endl;
 }
 void Plane::draw(ShaderProgram* shader) {
+	if (debug)fillAttrCheck(shader);
+	shader->setUnifMat4("u_model", getModel());
+	shader->setUnifMat3("u_modelInvTr", getModelInvTr());
 	int posAttr = shader->findAttrib("vs_pos");
 	int normAttr = shader->findAttrib("vs_norm");
 	int uvAttr = shader->findAttrib("vs_uv");

@@ -15,7 +15,7 @@ void ShaderProgram::printLinkInfoLog(int prog)const {
     std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 }
 void ShaderProgram::printUnifErrorLog(const std::string& name)const {
-    if(errorLog)std::cout << "Error: could not find shader variable with name " << name << std::endl;
+    if(debug)std::cout << "Error: could not find shader variable with name " << name << std::endl;
 }
 ShaderProgram::ShaderProgram(const char* vertFile, const char* fragFile){
     std::cout << "create vertex shader from: " << vertFile << std::endl;
