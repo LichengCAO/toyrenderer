@@ -82,6 +82,7 @@ FrameBuffer::~FrameBuffer() {
 
 void FrameBuffer::useDefaultBuffer() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glCullFace(GL_BACK);
 }
 void FrameBuffer::clearBuffer() {
 	glClearColor(0.f, 0.0f, 0.0f, 1.f);
@@ -101,6 +102,9 @@ void FrameBuffer::useBuffer() {
 	glViewport(0, 0, m_width, m_height);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
 	glEnable(GL_DEPTH_TEST);
+	bool isDepthBuffer = !m_generateRBO;
+	if (isDepthBuffer)glCullFace(GL_FRONT);
+	else glCullFace(GL_BACK);
 }
 Texture* FrameBuffer::getOutputTex(unsigned int i) {
 	return m_outputTex[i].get();

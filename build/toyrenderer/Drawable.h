@@ -32,7 +32,7 @@ public:
 	unsigned int drawMode()const { return m_drawMode; };
 	int idBufferSize()const { return m_idxBufSize; };
 	void debugLog()const;
-	void fillAttrCheck(ShaderProgram* shader)const;//use for debug
+	void fillAttrCheck(ShaderProgram* shader)const;//use for debug check if set all vs_...values shader needs
 };
 
 class Screen :

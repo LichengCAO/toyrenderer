@@ -208,12 +208,17 @@ void GLManager::processInput() {
 	if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS || glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS) {
 		m_camera.TranslateAlongUp(cameraSpeed * dT);
 	}
+	if (glfwGetKey(m_window, GLFW_KEY_R) == GLFW_PRESS) {
+		std::cout <<"camera world position: (" << m_camera.eye.x << ", "<< m_camera.eye.y << "," << m_camera.eye.z << ")" << std::endl;
+		std::cout << "camera look: (" << m_camera.look.x << ", " << m_camera.look.y << "," << m_camera.look.z << ")" << std::endl;
+	}
 }
 void GLManager::paintGL() {
 	glViewport(0, 0, m_width, m_height);
 	FrameBuffer::useDefaultBuffer();
 	FrameBuffer::clearBuffer();
 	FrameBuffer* prevBuffer = nullptr;//default buffer
+	updateShaderUnif();
 	for (auto& p : m_passes) {
 		auto&& curPass = p.first;
 		auto frameBuf = p.second;
@@ -254,7 +259,16 @@ void GLManager::run() {
 	glfwTerminate();
 }
 
-
+//update shader uniform u_time, u_ltDir, u_ltViewProj
+void GLManager::updateShaderUnif() {
+	glm::mat4 ltViewProj = m_ltCamera.getViewProj();
+	glm::vec3 ltDir = m_ltCamera.look;
+	for (auto&& shader : m_shaders) {
+		shader->setUnifMat4("u_ltViewProj", ltViewProj);
+		shader->setUnifFloat("u_time", lastFrame);
+		shader->setUnifVec3("u_ltDir", ltDir);
+	}
+}
 void GLManager::setupPasses() {
 	Mesh* mario = addMesh("E:/GitStorage/openGL/obj/wahoo.obj");
 	Screen* screen = addScreen();
@@ -263,21 +277,36 @@ void GLManager::setupPasses() {
 	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
 	ShaderProgram* simple = addShader("E:/GitStorage/openGL/glsl/simple_post.vert.glsl", "E:/GitStorage/openGL/glsl/simple_post.frag.glsl", SIMPLE_POST_SHADER);
 	ShaderProgram* debugShader = addShader("E:/GitStorage/openGL/glsl/basic.vert.glsl", "E:/GitStorage/openGL/glsl/basic.frag.glsl", PHONG_SHADER);
+	ShaderProgram* shadowRend = addShader("E:/GitStorage/openGL/glsl/shadow_render.vert.glsl", "E:/GitStorage/openGL/glsl/shadow_render.frag.glsl", PHONG_SHADER);
+	ShaderProgram* PCSS = addShader("E:/GitStorage/openGL/glsl/PCSS.vert.glsl", "E:/GitStorage/openGL/glsl/PCSS.frag.glsl", PHONG_SHADER);
 	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
-	FrameBuffer* framebuffer = addFrameBuffer(m_width, m_height);//create depth texture with 0
+	FrameBuffer* framebuffer = addFrameBuffer(m_width*2, m_height*2,0);//create depth texture with 0
 
-	plane->setScale(glm::vec3(8.f));
+	plane->setScale(glm::vec3(15.f));
 	plane->setRotation(glm::vec3(-90, 0, 0));
 	plane->setPosition(glm::vec3(0, -4, 0));
 
+	m_ltCamera.MoveTo(glm::vec3(-8.78343, 13.8268, 20.9452));
+	m_ltCamera.LookAlong(glm::vec3(0.333922, -0.46793, -0.818253));
+	m_ltCamera.near_clip = 0.1f;
+	m_ltCamera.far_clip = 50.f;
+
 	//add Pass1
 	std::vector<TextureInfo> texInfo1;
-	//texInfo1.push_back({ "u_texture", marioTex });
-	addPass(&m_camera, plane, debugShader, texInfo1);
+	texInfo1.push_back({ "u_texture", marioTex });
+	addPass(&m_ltCamera, mario, shadow, texInfo1,framebuffer);
 
 	//add Pass2
-	//std::vector<TextureInfo> texInfo2;
+	std::vector<TextureInfo> texInfo2;
+	texInfo2.push_back({ "u_texture",framebuffer->getOutputTex() });
+	addPass(&m_ltCamera, plane, shadow, texInfo2,framebuffer);
 
-	//texInfo2.push_back({ "u_texture",framebuffer->getOutputTex() });
-	//addPass(nullptr, screen, simple, texInfo2);
+	//add Pass3
+	std::vector<TextureInfo> texInfo3;
+	texInfo3.push_back({ "u_depth",framebuffer->getOutputTex() });
+	addPass(&m_camera, mario, PCSS, texInfo3);
+	
+	//add Pass4
+	addPass(&m_camera, plane, PCSS, texInfo3);
+
 }

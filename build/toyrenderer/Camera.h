@@ -39,6 +39,8 @@ public:
     void TranslateAlongRight(float amt);
     void TranslateAlongUp(float amt);
 
+    void MoveTo(const glm::vec3& wPos);
+
     void Zoom(float amt);
 
     virtual void Reset();

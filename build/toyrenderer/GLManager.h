@@ -59,6 +59,7 @@ public:
 		return myGL;
 	}
 	void run();
+	void updateShaderUnif();//update shader uniform u_time, u_ltDir, u_ltViewProj
 	ShaderProgram* addShader(const char* vertFile, const char* fragFile, ShaderType type);
 	Mesh* addMesh(const char* objFile);
 	Screen* addScreen();

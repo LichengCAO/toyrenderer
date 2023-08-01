@@ -119,7 +119,6 @@ void Camera::TranslateAlongLook(float amt)
     eye += translation;
     ref += translation;
 }
-
 void Camera::TranslateAlongRight(float amt)
 {
     glm::vec3 translation = right * amt;
@@ -131,6 +130,10 @@ void Camera::TranslateAlongUp(float amt)
     glm::vec3 translation = up * amt;
     eye += translation;
     ref += translation;
+}
+void Camera::MoveTo(const glm::vec3& wPos) {
+    eye = wPos;
+    RecomputeAttributes();
 }
 
 
