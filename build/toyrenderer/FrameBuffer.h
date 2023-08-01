@@ -13,7 +13,8 @@ protected:
 	unsigned int m_FBO;
 	unsigned int m_depthRBO;
 	std::vector<std::unique_ptr<Texture>> m_outputTex;
-	bool m_generated;
+	bool m_generateFBO;
+	bool m_generateRBO;
 public:
 	FrameBuffer(unsigned int width,unsigned int height,unsigned int texNum = 1);
 	virtual ~FrameBuffer();

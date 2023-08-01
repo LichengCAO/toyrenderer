@@ -1,18 +1,13 @@
 #include "Camera.h"
 Camera::Camera() :
     Camera(400, 400)
-{
-    look = glm::vec3(0, 0, -1);
-    up = glm::vec3(0, 1, 0);
-    right = glm::vec3(1, 0, 0);
-}
+{}
 
 Camera::Camera(unsigned int w, unsigned int h) :
     Camera(w, h, glm::vec3(0, 0, 10), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
 {}
 
 Camera::Camera(unsigned int w, unsigned int h, const glm::vec3& e, const glm::vec3& r, const glm::vec3& worldUp) :
-    fovy(45),
     width(w),
     height(h),
     near_clip(0.1f),
@@ -25,7 +20,6 @@ Camera::Camera(unsigned int w, unsigned int h, const glm::vec3& e, const glm::ve
 }
 
 Camera::Camera(const Camera& c) :
-    fovy(c.fovy),
     width(c.width),
     height(c.height),
     near_clip(c.near_clip),
@@ -36,28 +30,20 @@ Camera::Camera(const Camera& c) :
     look(c.look),
     up(c.up),
     right(c.right),
-    world_up(c.world_up),
-    V(c.V),
-    H(c.H)
+    world_up(c.world_up)
 {}
-
 
 void Camera::RecomputeAttributes()
 {
     look = glm::normalize(ref - eye);
     right = glm::normalize(glm::cross(look, world_up));
     up = glm::cross(right, look);
-
-    float tan_fovy = glm::tan(fovy / 2);
-    float len = glm::length(ref - eye);
     aspect = width / height;
-    V = up * len * tan_fovy;
-    H = right * len * aspect * tan_fovy;
 }
 
 glm::mat4 Camera::getViewProj()const
 {
-    return glm::perspective(fovy, width / (float)height, near_clip, far_clip) * glm::lookAt(eye, ref, up);
+    return getProj()*getView();
 }
 
 glm::mat4 Camera::getView()const
@@ -65,14 +51,8 @@ glm::mat4 Camera::getView()const
     return glm::lookAt(eye, ref, up);
 }
 
-glm::mat4 Camera::getProj()const
-{
-    return glm::perspective(fovy, width / (float)height, near_clip, far_clip);
-}
-
 void Camera::Reset()
 {
-    fovy = 45.f;
     eye = glm::vec3(0, 0, 12);
     ref = glm::vec3(0, 0, 0);
     world_up = glm::vec3(0, 1, 0);
@@ -151,4 +131,62 @@ void Camera::TranslateAlongUp(float amt)
     glm::vec3 translation = up * amt;
     eye += translation;
     ref += translation;
+}
+
+
+PersCamera::PersCamera() :
+    PersCamera(400, 400)
+{}
+PersCamera::PersCamera(unsigned int w, unsigned int h) :
+    PersCamera(w, h, glm::vec3(0, 0, 10), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
+{}
+PersCamera::PersCamera(unsigned int w, unsigned int h, const glm::vec3& e, const glm::vec3& r, const glm::vec3& worldUp)
+    :fovy(45), Camera(w, h, e, r, worldUp)
+{
+    RecomputeAttributes();
+    std::cout << "initialize PersCamera" << std::endl;
+}
+PersCamera::PersCamera(const PersCamera& c) :
+    fovy(c.fovy), H(c.H), V(c.V), Camera(c)
+{}
+glm::mat4 PersCamera::getProj()const {
+    return glm::perspective(fovy, float(width) / float(height), near_clip, far_clip);
+}
+void PersCamera::RecomputeAttributes() {
+    Camera::RecomputeAttributes();
+    float tan_fovy = glm::tan(fovy / 2);
+    float len = glm::length(ref - eye);
+    V = up * len * tan_fovy;
+    H = right * len * aspect * tan_fovy;
+}
+void PersCamera::Reset() {
+    fovy = 45.f;
+    eye = glm::vec3(0, 0, 12);
+    ref = glm::vec3(0, 0, 0);
+    world_up = glm::vec3(0, 1, 0);
+    RecomputeAttributes();
+}
+
+OrthoCamera::OrthoCamera() 
+    :OrthoCamera(400,400)
+{
+    look = glm::vec3(0, 0, -1);
+    up = glm::vec3(0, 1, 0);
+    right = glm::vec3(1, 0, 0);
+}
+OrthoCamera::OrthoCamera(unsigned int w, unsigned int h)
+    :OrthoCamera(w, h, glm::vec3(0, 0, 10), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
+{}
+OrthoCamera::OrthoCamera(unsigned int w, unsigned int h, const glm::vec3& e, const glm::vec3& r, const glm::vec3& worldUp)
+    :Camera(w, h, e, r, worldUp)
+{
+    std::cout << "initialize OrthoCamera" << std::endl;
+}
+OrthoCamera::OrthoCamera(const OrthoCamera& c)
+    :Camera(c)
+{}
+glm::mat4 OrthoCamera::getProj()const {
+    float halfWidth = float(width) / float(2);
+    float halfHeight = float(height) / float(2);
+    return glm::ortho(-halfWidth, halfWidth, -halfHeight, halfHeight, near_clip, far_clip);
 }

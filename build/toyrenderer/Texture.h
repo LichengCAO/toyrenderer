@@ -14,7 +14,7 @@ protected:
 	unsigned int m_bufId;	
 public:
 	Texture(const char* imgFile);
-	Texture(unsigned int width, unsigned int height);
+	Texture(unsigned int width, unsigned int height, bool depthTex = false);
 	virtual ~Texture();
 	void useTexture(unsigned int slot = 0);
 	void resize(unsigned int width, unsigned int height);

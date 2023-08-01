@@ -35,7 +35,9 @@ protected:
 	
 	bool m_initialized;
 
-	Camera m_camera;
+	PersCamera m_camera;
+	OrthoCamera m_ltCamera;
+
 	float lastFrame;
 	float dT;
 

@@ -26,13 +26,13 @@ Texture::Texture(const char* imgFile)
 		stbi_image_free(data);
 	}
 	else {
-		std::cout << "create empty texture: " << m_width << ", " << m_height << std::endl;
+		std::cout << "create empty texture: " << m_width << "x" << m_height << std::endl;
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	
 }
-Texture::Texture(unsigned int width,unsigned int height) 
+Texture::Texture(unsigned int width,unsigned int height, bool depthTex)
 	: m_imgFile(""), m_width(width), m_height(height), m_generated(false), m_bufId(0)
 {
 	glGenTextures(1, &m_bufId);
@@ -42,9 +42,15 @@ Texture::Texture(unsigned int width,unsigned int height)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	std::cout << "create empty texture: " << m_width << ", " << m_height << std::endl;
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	if (!depthTex) {
+		std::cout << "create empty texture: " << m_width << "x" << m_height << std::endl;
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else {
+		std::cout << "create depth texture: " << m_width << "x" << m_height << std::endl;
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, m_width, m_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, (void*)0);
+	}
 	
 }
 Texture::~Texture() {

@@ -1,15 +1,16 @@
 #include "GLManager.h"
 #include <functional>
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
-	auto& manager = GLManager::getInstance();
-	manager.m_width = width;
-	manager.m_height = height;
-}
 bool firstMouse = true;
 float lastX = 400, lastY = 300;
 float yaw = 0.f, pitch = 0.f;
 float sensitivity = 0.3;
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
+	std::cout << "size call back" << std::endl;
+	auto& manager = GLManager::getInstance();
+	manager.m_width = width;
+	manager.m_height = height;
+}
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	auto& manager = GLManager::getInstance();
 	Camera& camera = manager.m_camera;
@@ -43,6 +44,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 GLManager::GLManager()
 	:m_window(nullptr),
 	m_camera(640, 480, glm::vec3(0, 0, 12), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)),
+	//m_camera(20,20, glm::vec3(0, 0, 12), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)),
+	m_ltCamera(20, 20, glm::vec3(0, 0, 12), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)),
 	m_width(800), m_height(600),
 	m_initialized(false),
 	lastFrame(0.0),dT(0.0)
@@ -138,32 +141,6 @@ Pass* GLManager::addPass(const Camera* camera, Drawable* drawable, ShaderProgram
 	m_passes.push_back(std::make_pair(std::move(pass),framebuffer));
 	return res;
 }
-
-void GLManager::setupPasses() {
-	Mesh* mario = addMesh("E:/GitStorage/openGL/obj/wahoo.obj");
-	Screen* screen = addScreen();
-	Plane* plane = addPlane();
-	ShaderProgram* phong = addShader("E:/GitStorage/openGL/glsl/phong.vert.glsl", "E:/GitStorage/openGL/glsl/phong.frag.glsl", PHONG_SHADER);
-	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
-	ShaderProgram* simple = addShader("E:/GitStorage/openGL/glsl/simple_post.vert.glsl", "E:/GitStorage/openGL/glsl/simple_post.frag.glsl", SIMPLE_POST_SHADER);
-	ShaderProgram* debugShader = addShader("E:/GitStorage/openGL/glsl/basic.vert.glsl", "E:/GitStorage/openGL/glsl/basic.frag.glsl", PHONG_SHADER);
-	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
-	FrameBuffer* framebuffer = addFrameBuffer(m_width, m_height);
-
-	//add Pass1
-	std::vector<TextureInfo> texInfo1;
-	texInfo1.push_back({ "u_texture", marioTex });
-	addPass(&m_camera, mario, debugShader, texInfo1);
-
-	//add Pass2
-	std::vector<TextureInfo> texInfo2;
-	plane->setScale(glm::vec3(8.f));
-	plane->setRotation(glm::vec3(-90, 0, 0));
-	plane->setPosition(glm::vec3(0, -4, 0));
-	//texInfo2.push_back({ "u_texture",framebuffer->getOutputTex() });
-	addPass(&m_camera, plane, debugShader, texInfo2);
-}
-
 void GLManager::debugLog()const {
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
@@ -233,6 +210,7 @@ void GLManager::processInput() {
 	}
 }
 void GLManager::paintGL() {
+	glViewport(0, 0, m_width, m_height);
 	FrameBuffer::useDefaultBuffer();
 	FrameBuffer::clearBuffer();
 	FrameBuffer* prevBuffer = nullptr;//default buffer
@@ -242,6 +220,7 @@ void GLManager::paintGL() {
 		//setup framebuffer
 		bool needClear = (prevBuffer != frameBuf);
 		if (frameBuf == nullptr) {
+			glViewport(0, 0, m_width, m_height);
 			FrameBuffer::useDefaultBuffer();
 		}
 		else {
@@ -254,7 +233,7 @@ void GLManager::paintGL() {
 		//let pass draw
 		curPass->run();
 	}
-	FrameBuffer::useDefaultBuffer();
+	//FrameBuffer::useDefaultBuffer();
 	glfwSwapBuffers(m_window);
 	glfwPollEvents();
 }
@@ -273,4 +252,32 @@ void GLManager::run() {
 		paintGL();
 	}
 	glfwTerminate();
+}
+
+
+void GLManager::setupPasses() {
+	Mesh* mario = addMesh("E:/GitStorage/openGL/obj/wahoo.obj");
+	Screen* screen = addScreen();
+	Plane* plane = addPlane();
+	ShaderProgram* phong = addShader("E:/GitStorage/openGL/glsl/phong.vert.glsl", "E:/GitStorage/openGL/glsl/phong.frag.glsl", PHONG_SHADER);
+	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
+	ShaderProgram* simple = addShader("E:/GitStorage/openGL/glsl/simple_post.vert.glsl", "E:/GitStorage/openGL/glsl/simple_post.frag.glsl", SIMPLE_POST_SHADER);
+	ShaderProgram* debugShader = addShader("E:/GitStorage/openGL/glsl/basic.vert.glsl", "E:/GitStorage/openGL/glsl/basic.frag.glsl", PHONG_SHADER);
+	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
+	FrameBuffer* framebuffer = addFrameBuffer(m_width, m_height);//create depth texture with 0
+
+	plane->setScale(glm::vec3(8.f));
+	plane->setRotation(glm::vec3(-90, 0, 0));
+	plane->setPosition(glm::vec3(0, -4, 0));
+
+	//add Pass1
+	std::vector<TextureInfo> texInfo1;
+	//texInfo1.push_back({ "u_texture", marioTex });
+	addPass(&m_camera, plane, debugShader, texInfo1);
+
+	//add Pass2
+	//std::vector<TextureInfo> texInfo2;
+
+	//texInfo2.push_back({ "u_texture",framebuffer->getOutputTex() });
+	//addPass(nullptr, screen, simple, texInfo2);
 }
