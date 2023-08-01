@@ -1,14 +1,17 @@
 #version 440 core
-
+//https://blog.csdn.net/hankern/article/details/106516006
+#extension GL_OES_standard_derivatives : enable
 uniform mat4 u_viewProj;
 uniform mat4 u_model;
 uniform mat3 u_viewProjTr;
 uniform mat4 u_ltViewProj;
 uniform vec3 u_ltDir;
 uniform sampler2D u_depth;
+uniform sampler2D u_texture;
+uniform float u_depthBiasA;
 
 in vec4 fs_pos;
-//in vec2 fs_uv;
+in vec2 fs_uv;
 in vec3 fs_norm;
 in vec4 fs_ltClip;
 
@@ -37,8 +40,13 @@ highp float rand_2to1(vec2 uv ) {
 float getDepth(sampler2D shadowMap,vec2 uv){
     return texture2D(shadowMap,uv).r;
 }
+//https://zhuanlan.zhihu.com/p/370951892
 float calBias(vec3 norm,vec3 ltDir){
-    float bias = max(0.01 * (1.0 - abs(dot(norm, ltDir))), 0.005);
+    //float level = dFdx(); //if uv changes fast->pos far from screen, we need shadowmap that covers more space
+    float biasA = u_depthBiasA;
+    float biasB = 1.0 - abs(dot(norm, ltDir));
+    float normalBias = 0.045 * biasA * biasB;
+    float bias = max(normalBias, 0.005);
     return bias;
 }
 //sample
@@ -93,7 +101,7 @@ float PCSS(sampler2D shadowMap, vec4 coords, float bias){
     float curDepth = coords.z - bias;
     float avgDepth = findBlocker( shadowMap,  coords.xy, curDepth );
     // STEP 2: penumbra size
-    float filterSize =  ((curDepth - avgDepth)/avgDepth) * 0.01;
+    float filterSize =  ((curDepth - avgDepth)/avgDepth) * 0.02;
     // STEP 3: filtering
     float ans = 0.0;
     for(int i = 0;i<NUM_SAMPLES;++i){
@@ -120,8 +128,8 @@ void main()
     vec3 wi = -u_ltDir;
     vec3 N = normalize(fs_norm);
     float visibility = calVisibility(fs_ltClip,N,wi);
-    //float visibility = 1.0;
-    vec3 color = (N*0.5f + vec3(0.5f)) * visibility;
+    float lambert = dot(wi,N);
+    vec3 color = texture2D(u_texture,fs_uv).rgb * lambert * visibility;
     out_color = vec4(color,1.0);
     //out_color = vec4(vec3(gl_FragCoord.z),1.0);
 }

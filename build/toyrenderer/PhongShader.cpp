@@ -15,6 +15,7 @@ PhongShader::PhongShader(const char* vertFile, const char* fragFile):ShaderProgr
     
 	addUniform("u_texture");
 	addUniform("u_depth");
+	addUniform("u_depthBiasA");
 	
 	setUnifVec3("u_ltDir", glm::normalize(glm::vec3(1, -1, -1)));
 	std::cout << std::endl;

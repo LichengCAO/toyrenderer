@@ -18,6 +18,8 @@ public:
 	virtual ~Texture();
 	void useTexture(unsigned int slot = 0);
 	void resize(unsigned int width, unsigned int height);
+	unsigned int getWidth()const;
+	unsigned int getHeight()const;
 	friend class FrameBuffer;
 };
 

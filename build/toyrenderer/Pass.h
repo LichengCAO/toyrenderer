@@ -7,20 +7,36 @@
 #include <vector>
 
 //setup textures
-//set
 struct TextureInfo {
 	std::string name;
 	Texture* tex;
 };
+
 class Pass
 {
-private:
+protected:
 	const Camera* m_camera;
 	Drawable* m_drawable;
 	ShaderProgram* m_shader;
 	std::vector<TextureInfo> m_texInfos;
+	FrameBuffer* m_frameBuf;
+	bool m_forceClear;
+	bool needClearBuffer()const;
 public:
-	Pass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&);
-	void run();
+	static FrameBuffer* u_bufferInUse;//shared by all child class https://blog.csdn.net/weixin_43356308/article/details/116371338
+	Pass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&, FrameBuffer* frameBuf = nullptr, bool forceClear = false);
+	virtual void run();
+};
+
+class ShadowedPass
+	:public Pass
+{
+protected:
+	float calBiasA(const Texture* shadowTex);//https://zhuanlan.zhihu.com/p/370951892
+	std::vector<std::pair<TextureInfo,float>> m_shadowInfos;
+public:
+	ShadowedPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&, FrameBuffer* frameBuf = nullptr, bool forceClear = false);
+	void addShadowMap(const TextureInfo& shadowMap);
+	virtual void run()override;
 };
 

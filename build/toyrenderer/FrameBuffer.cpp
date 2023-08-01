@@ -1,4 +1,7 @@
 #include "FrameBuffer.h"
+unsigned int FrameBuffer::u_height;
+unsigned int FrameBuffer::u_width;
+
 FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, unsigned int texNum)
 	: m_width(width), m_height(height), m_FBO(0), m_depthRBO(0),
 	//m_outputTex(std::vector<std::unique_ptr<Texture>>(texNum,std::make_unique<Texture>(m_width,m_height))), invalid
@@ -79,8 +82,8 @@ FrameBuffer::~FrameBuffer() {
 		glDeleteRenderbuffers(1, &m_depthRBO);
 	}
 }
-
 void FrameBuffer::useDefaultBuffer() {
+	glViewport(0, 0, u_width, u_height);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glCullFace(GL_BACK);
 }
@@ -108,4 +111,16 @@ void FrameBuffer::useBuffer() {
 }
 Texture* FrameBuffer::getOutputTex(unsigned int i) {
 	return m_outputTex[i].get();
+}
+unsigned int FrameBuffer::getDefaultWidth() {
+	return u_width;
+}
+unsigned int FrameBuffer::getDefaultHeight() {
+	return u_height;
+}
+unsigned int FrameBuffer::getWidth()const {
+	return m_width;
+}
+unsigned int FrameBuffer::getHeight()const {
+	return m_height;
 }

@@ -8,8 +8,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 	std::cout << "size call back" << std::endl;
 	auto& manager = GLManager::getInstance();
-	manager.m_width = width;
-	manager.m_height = height;
+	manager.resize(width, height);
 }
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	auto& manager = GLManager::getInstance();
@@ -65,7 +64,12 @@ void GLManager::displayError() const{
 		std::cerr << e << std::endl;
 	}
 }
-
+void GLManager::resize(unsigned int width, unsigned int height) {
+	m_width = width;
+	m_height = height;
+	FrameBuffer::u_width = width;
+	FrameBuffer::u_height = height;
+}
 ShaderProgram* GLManager::addShader(const char* vertFile, const char* fragFile, ShaderType type) {
 	int shaderId = m_shaders.size();
 	ShaderProgram* res = nullptr;
@@ -135,10 +139,29 @@ FrameBuffer* GLManager::addFrameBuffer(unsigned int width, unsigned int height, 
 	m_framebuffers.push_back(std::move(frameBuf));
 	return res;
 }
-Pass* GLManager::addPass(const Camera* camera, Drawable* drawable, ShaderProgram* shader, const std::vector<TextureInfo>& texInfo,FrameBuffer* framebuffer) {
-	std::unique_ptr<Pass> pass = std::make_unique<Pass>(camera, drawable, shader, texInfo);
+Pass* GLManager::addPass(const Camera* camera, Drawable* drawable, ShaderProgram* shader, const std::vector<TextureInfo>& texInfo,
+	FrameBuffer* framebuffer,bool forceClear) {
+	//if the pass is first pass we need to clear the buffer
+	if (m_passes.size() == 0) {
+		forceClear = true;
+		std::cout << "Tell first pass to clear its buffer" << std::endl;
+	}
+	std::unique_ptr<Pass> pass = std::make_unique<Pass>(camera, drawable, shader, texInfo,framebuffer,forceClear);
 	Pass* res = pass.get();
-	m_passes.push_back(std::make_pair(std::move(pass),framebuffer));
+	m_passes.push_back(std::move(pass));
+	return res;
+}
+ShadowedPass* GLManager::addShadowedPass(const Camera* camera, 
+	Drawable* drawable, ShaderProgram* shader, 
+	const std::vector<TextureInfo>& texInfo,
+	FrameBuffer* framebuffer, bool forceClear) {
+	if (m_passes.size() == 0) {
+		forceClear = true;
+		std::cout << "Tell first pass to clear its buffer" << std::endl;
+	}
+	std::unique_ptr<ShadowedPass> uPtr = std::make_unique<ShadowedPass>(camera, drawable, shader, texInfo, framebuffer, forceClear);
+	ShadowedPass* res = uPtr.get();
+	m_passes.push_back(std::move(uPtr));
 	return res;
 }
 void GLManager::debugLog()const {
@@ -183,6 +206,7 @@ int GLManager::initializeGL() {
 	displayError();
 	glfwSetFramebufferSizeCallback(m_window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(m_window, mouse_callback);
+	resize(m_width, m_height);
 	return 0;
 }
 void GLManager::processInput() {
@@ -213,35 +237,6 @@ void GLManager::processInput() {
 		std::cout << "camera look: (" << m_camera.look.x << ", " << m_camera.look.y << "," << m_camera.look.z << ")" << std::endl;
 	}
 }
-void GLManager::paintGL() {
-	glViewport(0, 0, m_width, m_height);
-	FrameBuffer::useDefaultBuffer();
-	FrameBuffer::clearBuffer();
-	FrameBuffer* prevBuffer = nullptr;//default buffer
-	updateShaderUnif();
-	for (auto& p : m_passes) {
-		auto&& curPass = p.first;
-		auto frameBuf = p.second;
-		//setup framebuffer
-		bool needClear = (prevBuffer != frameBuf);
-		if (frameBuf == nullptr) {
-			glViewport(0, 0, m_width, m_height);
-			FrameBuffer::useDefaultBuffer();
-		}
-		else {
-			frameBuf->useBuffer();
-		}
-		if (needClear) {
-			FrameBuffer::clearBuffer();
-		}
-		prevBuffer = frameBuf;
-		//let pass draw
-		curPass->run();
-	}
-	//FrameBuffer::useDefaultBuffer();
-	glfwSwapBuffers(m_window);
-	glfwPollEvents();
-}
 void GLManager::run() {
 	if (!m_initialized) {
 		std::cout << "initialized failed" << std::endl;
@@ -258,7 +253,19 @@ void GLManager::run() {
 	}
 	glfwTerminate();
 }
-
+void GLManager::paintGL() {
+	FrameBuffer::useDefaultBuffer();
+	FrameBuffer::clearBuffer();
+	FrameBuffer* prevBuffer = nullptr;//default buffer
+	updateShaderUnif();
+	for (auto&& pass : m_passes) {
+		//let pass draw
+		pass->run();
+	}
+	//FrameBuffer::useDefaultBuffer();
+	glfwSwapBuffers(m_window);
+	glfwPollEvents();
+}
 //update shader uniform u_time, u_ltDir, u_ltViewProj
 void GLManager::updateShaderUnif() {
 	glm::mat4 ltViewProj = m_ltCamera.getViewProj();
@@ -273,12 +280,10 @@ void GLManager::setupPasses() {
 	Mesh* mario = addMesh("E:/GitStorage/openGL/obj/wahoo.obj");
 	Screen* screen = addScreen();
 	Plane* plane = addPlane();
-	ShaderProgram* phong = addShader("E:/GitStorage/openGL/glsl/phong.vert.glsl", "E:/GitStorage/openGL/glsl/phong.frag.glsl", PHONG_SHADER);
 	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
-	ShaderProgram* simple = addShader("E:/GitStorage/openGL/glsl/simple_post.vert.glsl", "E:/GitStorage/openGL/glsl/simple_post.frag.glsl", SIMPLE_POST_SHADER);
 	ShaderProgram* debugShader = addShader("E:/GitStorage/openGL/glsl/basic.vert.glsl", "E:/GitStorage/openGL/glsl/basic.frag.glsl", PHONG_SHADER);
-	ShaderProgram* shadowRend = addShader("E:/GitStorage/openGL/glsl/shadow_render.vert.glsl", "E:/GitStorage/openGL/glsl/shadow_render.frag.glsl", PHONG_SHADER);
 	ShaderProgram* PCSS = addShader("E:/GitStorage/openGL/glsl/PCSS.vert.glsl", "E:/GitStorage/openGL/glsl/PCSS.frag.glsl", PHONG_SHADER);
+	Texture* planeTex = addTexture("E:/GitStorage/openGL/texture/plane.bmp");
 	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
 	FrameBuffer* framebuffer = addFrameBuffer(m_width*2, m_height*2,0);//create depth texture with 0
 
@@ -293,20 +298,23 @@ void GLManager::setupPasses() {
 
 	//add Pass1
 	std::vector<TextureInfo> texInfo1;
-	texInfo1.push_back({ "u_texture", marioTex });
-	addPass(&m_ltCamera, mario, shadow, texInfo1,framebuffer);
+	addPass(&m_ltCamera, mario, shadow, texInfo1,framebuffer,true);
 
 	//add Pass2
 	std::vector<TextureInfo> texInfo2;
-	texInfo2.push_back({ "u_texture",framebuffer->getOutputTex() });
 	addPass(&m_ltCamera, plane, shadow, texInfo2,framebuffer);
 
 	//add Pass3
 	std::vector<TextureInfo> texInfo3;
-	texInfo3.push_back({ "u_depth",framebuffer->getOutputTex() });
-	addPass(&m_camera, mario, PCSS, texInfo3);
+	texInfo3.push_back({ "u_texture", marioTex });
+	auto shadowedPass1 = addShadowedPass(&m_camera, mario, PCSS, texInfo3);
 	
 	//add Pass4
-	addPass(&m_camera, plane, PCSS, texInfo3);
+	std::vector<TextureInfo> texInfo4;
+	texInfo4.push_back({ "u_texture", planeTex });
+	auto shadowedPass2 = addShadowedPass(&m_camera, plane, PCSS, texInfo4);
+
+	shadowedPass1->addShadowMap({ "u_depth",framebuffer->getOutputTex() });
+	shadowedPass2->addShadowMap({ "u_depth",framebuffer->getOutputTex() });
 
 }
