@@ -11,6 +11,7 @@
 #include "ShaderProgram.h"
 #include "Drawable.h"
 #include "Pass.h"
+#include "DirectLight.h"
 
 //glViewport(0, 0, m_width / 2, m_height / 2); draw how much screen
 //texture(m_width/2,m_height/2); record how much screen into texture
@@ -18,8 +19,8 @@
 //glViewport(0, 0, m_width / 2, m_height / 2);->texture(m_width/2,m_height/2);->glViewport(0, 0, m_width / 2, m_height / 2);1/4 screen display
 const enum ShaderType
 {
-	PHONG_SHADER,
-	SIMPLE_POST_SHADER,
+	SURFACE_SHADER,
+	POST_SHADER,
 	SHADOW_SHADER
 };
 class GLManager
@@ -37,6 +38,7 @@ protected:
 
 	PersCamera m_camera;
 	OrthoCamera m_ltCamera;
+	DirectLight m_dirLight;
 
 	float lastFrame;
 	float dT;
@@ -50,7 +52,7 @@ protected:
 
 	void displayError()const;
 	void resize(unsigned int width, unsigned int height);
-	void setupPasses();
+	void setupPass();
 	int initializeGL();
 	void processInput();
 	void paintGL();

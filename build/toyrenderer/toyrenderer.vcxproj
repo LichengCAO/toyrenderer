@@ -22,28 +22,31 @@
     <ClCompile Include="..\..\3rdparty\src\glad.c" />
     <ClCompile Include="..\..\3rdparty\src\tiny_obj_loader.cc" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="DirectLight.cpp" />
     <ClCompile Include="Drawable.cpp" />
     <ClCompile Include="FrameBuffer.cpp" />
     <ClCompile Include="GLManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Pass.cpp" />
-    <ClCompile Include="PhongShader.cpp" />
+    <ClCompile Include="SurfaceShader.cpp" />
     <ClCompile Include="Plane.cpp" />
     <ClCompile Include="Screen.cpp" />
     <ClCompile Include="ShaderProgram.cpp" />
     <ClCompile Include="ShadowShader.cpp" />
-    <ClCompile Include="SimplePostShader.cpp" />
+    <ClCompile Include="PostShader.cpp" />
     <ClCompile Include="Transform.cpp" />
     <ClCompile Include="stb_image.cpp" />
     <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="DirectLight.h" />
     <ClInclude Include="Drawable.h" />
     <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="GLManager.h" />
     <ClInclude Include="glm_includes.h" />
+    <ClInclude Include="Listener.h" />
     <ClInclude Include="Pass.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ShaderProgram.h" />

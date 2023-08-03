@@ -10,8 +10,8 @@ Camera::Camera(unsigned int w, unsigned int h) :
 Camera::Camera(unsigned int w, unsigned int h, const glm::vec3& e, const glm::vec3& r, const glm::vec3& worldUp) :
     width(w),
     height(h),
-    near_clip(0.1f),
-    far_clip(1000.f),
+    near_clip(.1f),
+    far_clip(300.f),
     eye(e),
     ref(r),
     world_up(worldUp)
@@ -132,8 +132,9 @@ void Camera::TranslateAlongUp(float amt)
     ref += translation;
 }
 void Camera::MoveTo(const glm::vec3& wPos) {
+    glm::vec3 translation = wPos - eye;
     eye = wPos;
-    RecomputeAttributes();
+    ref += translation;
 }
 
 
@@ -147,17 +148,16 @@ PersCamera::PersCamera(unsigned int w, unsigned int h, const glm::vec3& e, const
     :fovy(45), Camera(w, h, e, r, worldUp)
 {
     RecomputeAttributes();
-    std::cout << "initialize PersCamera" << std::endl;
 }
 PersCamera::PersCamera(const PersCamera& c) :
     fovy(c.fovy), H(c.H), V(c.V), Camera(c)
 {}
 glm::mat4 PersCamera::getProj()const {
-    return glm::perspective(fovy, float(width) / float(height), near_clip, far_clip);
+    return glm::perspective(glm::radians(fovy), float(width) / float(height), near_clip, far_clip);
 }
 void PersCamera::RecomputeAttributes() {
     Camera::RecomputeAttributes();
-    float tan_fovy = glm::tan(fovy / 2);
+    float tan_fovy = glm::tan(glm::radians(fovy) / 2);
     float len = glm::length(ref - eye);
     V = up * len * tan_fovy;
     H = right * len * aspect * tan_fovy;
@@ -182,9 +182,7 @@ OrthoCamera::OrthoCamera(unsigned int w, unsigned int h)
 {}
 OrthoCamera::OrthoCamera(unsigned int w, unsigned int h, const glm::vec3& e, const glm::vec3& r, const glm::vec3& worldUp)
     :Camera(w, h, e, r, worldUp)
-{
-    std::cout << "initialize OrthoCamera" << std::endl;
-}
+{}
 OrthoCamera::OrthoCamera(const OrthoCamera& c)
     :Camera(c)
 {}

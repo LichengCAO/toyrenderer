@@ -39,18 +39,17 @@ public:
 	void setUnifBool(const std::string& name, bool i)const;
 	void debugLog()const;
 };
-class SimplePostShader :
+class PostShader :
 	public ShaderProgram
 {
 public:
-	SimplePostShader(const char* vertFile, const char* fragFile);
+	PostShader(const char* vertFile, const char* fragFile);
 };
-class PhongShader :
+class SurfaceShader :
 	public ShaderProgram
 {
 public:
-	PhongShader(const char* vertFile, const char* fragFile);
-	//virtual void draw(Drawable& d);
+	SurfaceShader(const char* vertFile, const char* fragFile);
 };
 class ShadowShader :
 	public ShaderProgram

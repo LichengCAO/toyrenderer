@@ -39,7 +39,7 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PhongShader.cpp">
+    <ClCompile Include="SurfaceShader.cpp">
       <Filter>Source Files\shaders</Filter>
     </ClCompile>
     <ClCompile Include="..\..\3rdparty\src\tiny_obj_loader.cc">
@@ -63,7 +63,7 @@
     <ClCompile Include="Screen.cpp">
       <Filter>Source Files\drawable</Filter>
     </ClCompile>
-    <ClCompile Include="SimplePostShader.cpp">
+    <ClCompile Include="PostShader.cpp">
       <Filter>Source Files\shaders</Filter>
     </ClCompile>
     <ClCompile Include="ShadowShader.cpp">
@@ -77,6 +77,9 @@
     </ClCompile>
     <ClCompile Include="Plane.cpp">
       <Filter>Source Files\drawable</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectLight.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -108,6 +111,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectLight.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Listener.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

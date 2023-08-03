@@ -45,6 +45,7 @@ GLManager::GLManager()
 	m_camera(640, 480, glm::vec3(0, 0, 12), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)),
 	//m_camera(20,20, glm::vec3(0, 0, 12), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)),
 	m_ltCamera(20, 20, glm::vec3(0, 0, 12), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)),
+	m_dirLight(&m_camera),
 	m_width(800), m_height(600),
 	m_initialized(false),
 	lastFrame(0.0),dT(0.0)
@@ -76,16 +77,16 @@ ShaderProgram* GLManager::addShader(const char* vertFile, const char* fragFile, 
 	//transfer of control bypasses initialization of: variable xxx
 	//https://blog.csdn.net/venom_snake/article/details/106784095
 	switch (type) {
-	case PHONG_SHADER:
+	case SURFACE_SHADER:
 	{
-		std::unique_ptr<PhongShader> phongShader = std::make_unique<PhongShader>(vertFile, fragFile);
+		std::unique_ptr<SurfaceShader> phongShader = std::make_unique<SurfaceShader>(vertFile, fragFile);
 		res = phongShader.get();
 		m_shaders.push_back(std::move(phongShader));
 		break;
 	}
-	case SIMPLE_POST_SHADER:
+	case POST_SHADER:
 	{
-		std::unique_ptr<SimplePostShader> simplePostShader = std::make_unique<SimplePostShader>(vertFile, fragFile);
+		std::unique_ptr<PostShader> simplePostShader = std::make_unique<PostShader>(vertFile, fragFile);
 		res = simplePostShader.get();
 		m_shaders.push_back(std::move(simplePostShader));
 		break;
@@ -246,9 +247,10 @@ void GLManager::run() {
 	dT = curFrame - lastFrame;
 	lastFrame = curFrame;
 	float deg = 0.0f;
-	setupPasses();
+	setupPass();
 	while (!glfwWindowShouldClose(m_window)) {
 		processInput();
+		m_dirLight.updateLightCamera();
 		paintGL();
 	}
 	glfwTerminate();
@@ -274,47 +276,78 @@ void GLManager::updateShaderUnif() {
 		shader->setUnifMat4("u_ltViewProj", ltViewProj);
 		shader->setUnifFloat("u_time", lastFrame);
 		shader->setUnifVec3("u_ltDir", ltDir);
+		for (int i = 0;i < 4;++i) {
+			std::string u_id = "[" + std::to_string(i) + "]";
+			std::string u_sphere = "u_sphere" + u_id;
+			std::string u_radius = "u_radius" + u_id;
+			std::string u_viewProj = "u_ltViewProj" + u_id;
+			auto sphere = m_dirLight.getSphereBound(i);
+			shader->setUnifVec3(u_sphere,sphere.center);
+			shader->setUnifFloat(u_radius, sphere.radius);
+			shader->setUnifMat4(u_viewProj, m_dirLight.getLightCamera(i)->getViewProj());
+		}
 	}
 }
-void GLManager::setupPasses() {
+void GLManager::setupPass() {
 	Mesh* mario = addMesh("E:/GitStorage/openGL/obj/wahoo.obj");
 	Screen* screen = addScreen();
 	Plane* plane = addPlane();
-	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
-	ShaderProgram* debugShader = addShader("E:/GitStorage/openGL/glsl/basic.vert.glsl", "E:/GitStorage/openGL/glsl/basic.frag.glsl", PHONG_SHADER);
-	ShaderProgram* PCSS = addShader("E:/GitStorage/openGL/glsl/PCSS.vert.glsl", "E:/GitStorage/openGL/glsl/PCSS.frag.glsl", PHONG_SHADER);
+	
+	ShaderProgram* debugShader = addShader("E:/GitStorage/openGL/glsl/basic.vert.glsl", "E:/GitStorage/openGL/glsl/basic.frag.glsl", SURFACE_SHADER);
+	ShaderProgram* PCSS = addShader("E:/GitStorage/openGL/glsl/PCSS.vert.glsl", "E:/GitStorage/openGL/glsl/PCSS.frag.glsl", SURFACE_SHADER);
+	ShaderProgram* CSM = addShader("E:/GitStorage/openGL/glsl/CSM.vert.glsl", "E:/GitStorage/openGL/glsl/CSM.frag.glsl", SURFACE_SHADER);
 	Texture* planeTex = addTexture("E:/GitStorage/openGL/texture/plane.bmp");
 	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
 	FrameBuffer* framebuffer = addFrameBuffer(m_width*2, m_height*2,0);//create depth texture with 0
 
-	plane->setScale(glm::vec3(15.f));
+	plane->setScale(glm::vec3(150.f));
 	plane->setRotation(glm::vec3(-90, 0, 0));
 	plane->setPosition(glm::vec3(0, -4, 0));
 
-	m_ltCamera.MoveTo(glm::vec3(-8.78343, 13.8268, 20.9452));
-	m_ltCamera.LookAlong(glm::vec3(0.333922, -0.46793, -0.818253));
-	m_ltCamera.near_clip = 0.1f;
-	m_ltCamera.far_clip = 50.f;
-
-	//add Pass1
-	std::vector<TextureInfo> texInfo1;
-	addPass(&m_ltCamera, mario, shadow, texInfo1,framebuffer,true);
-
-	//add Pass2
-	std::vector<TextureInfo> texInfo2;
-	addPass(&m_ltCamera, plane, shadow, texInfo2,framebuffer);
-
-	//add Pass3
-	std::vector<TextureInfo> texInfo3;
-	texInfo3.push_back({ "u_texture", marioTex });
-	auto shadowedPass1 = addShadowedPass(&m_camera, mario, PCSS, texInfo3);
+	//setup shadowmapping pass
+	std::vector<TextureInfo> emptyTex;
+	addPass(&m_camera, mario, debugShader, emptyTex);
+	addPass(&m_camera, plane, debugShader, emptyTex);
 	
-	//add Pass4
-	std::vector<TextureInfo> texInfo4;
-	texInfo4.push_back({ "u_texture", planeTex });
-	auto shadowedPass2 = addShadowedPass(&m_camera, plane, PCSS, texInfo4);
+	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
+	shadow = debugShader;
+	unsigned int shadowTexWidth = m_width;
+	unsigned int shadowTexHeight = m_width;
 
-	shadowedPass1->addShadowMap({ "u_depth",framebuffer->getOutputTex() });
-	shadowedPass2->addShadowMap({ "u_depth",framebuffer->getOutputTex() });
+	FrameBuffer* shadowBuffer[4];
+	for (int i = 0;i < 4;++i) {
+		shadowBuffer[i] = addFrameBuffer(shadowTexWidth, shadowTexHeight, 0);
+		Camera* ltCamera = m_dirLight.getLightCamera(i);
+		addPass(ltCamera, mario, shadow, emptyTex, shadowBuffer[i]);
+		addPass(ltCamera, plane, shadow, emptyTex, shadowBuffer[i]);
+		//addPass(ltCamera, mario, debugShader, emptyTex, debugBuffer[i]);
+		//addPass(ltCamera, plane, debugShader, emptyTex, debugBuffer[i]);
+	}
+
+	//setup 3d render pass
+	std::vector<TextureInfo> shadowMap;
+	for (int i = 0;i < 4;++i) {
+		std::string u_id = "[" + std::to_string(i) + "]";
+		std::string u_depth = "u_depth" + u_id;
+		shadowMap.push_back({ u_depth,shadowBuffer[i]->getOutputTex() });
+	}
+
+	std::vector<TextureInfo> marioTexInfo = shadowMap;
+	marioTexInfo.push_back({ "u_texture",marioTex });
+	addPass(&m_camera, mario, CSM, marioTexInfo);
+
+	std::vector<TextureInfo> planeTexInfo = shadowMap;
+	planeTexInfo.push_back({ "u_texture", planeTex });
+	addPass(&m_camera, plane, CSM, planeTexInfo);
+
+	////add Pass4
+	//std::vector<TextureInfo> texInfo4;
+	//texInfo4.push_back({ "u_texture", planeTex });
+	//auto shadowedPass2 = addShadowedPass(&m_camera, plane, PCSS, texInfo4);
+	//shadowedPass2->addShadowMap({ "u_depth",framebuffer->getOutputTex() });
+
+
+	//setup post shading pass
+
 
 }
