@@ -54,8 +54,11 @@ void DirectLight::calSphereBound() {
 		float toSphereLen = std::sqrt(r_2 - w2_2) + m_splitDist[i];
 		m_sphereBound[i].center = m_viewCamera->eye + m_viewCamera->look * toSphereLen;
 		m_sphereBound[i].radius = std::sqrt(r_2);
-		
 	}
+	//for (auto s : m_sphereBound) {
+	//	std::cout << s.center.x << "," << s.center.y << ", " << s.center.z << std::endl;
+	//}
+	//std::cout << "########################################" << std::endl;
 }
 void DirectLight::updateLightCamera() {
 	if (m_viewCamera == nullptr) {
@@ -85,8 +88,8 @@ void DirectLight::setLightCameraWithBound() {
 		//make our camera fill this sphere
 		float radius = m_sphereBound[i].radius;
 		OrthoCamera* ltCamera = m_ltCamera[i].get();
-		ltCamera->width = ltCamera->height = radius;
-		ltCamera->far_clip = radius;
+		ltCamera->width = ltCamera->height = radius*2;
+		ltCamera->far_clip = radius*2;
 		ltCamera->MoveTo(m_sphereBound[i].center - m_ltDir * radius);
 		ltCamera->LookAlong(m_ltDir);
 	}

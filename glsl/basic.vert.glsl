@@ -9,6 +9,6 @@ in vec3 vs_norm;
 out vec3 fs_norm;
 
 void main(){   
-    fs_norm = u_modelInvTr * vs_norm;
+    fs_norm = normalize(u_modelInvTr * vs_norm);
     gl_Position = u_viewProj * u_model * vs_pos;
 }

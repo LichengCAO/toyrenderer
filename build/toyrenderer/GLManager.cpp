@@ -271,7 +271,7 @@ void GLManager::paintGL() {
 //update shader uniform u_time, u_ltDir, u_ltViewProj
 void GLManager::updateShaderUnif() {
 	glm::mat4 ltViewProj = m_ltCamera.getViewProj();
-	glm::vec3 ltDir = m_ltCamera.look;
+	glm::vec3 ltDir = m_dirLight.getLightDir();
 	for (auto&& shader : m_shaders) {
 		shader->setUnifMat4("u_ltViewProj", ltViewProj);
 		shader->setUnifFloat("u_time", lastFrame);
