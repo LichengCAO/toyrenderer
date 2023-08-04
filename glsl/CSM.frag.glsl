@@ -32,7 +32,6 @@ out vec4 out_color;
 //#define BIAS_A 0.25
 
 const float BIAS_A = 0.25f;
-vec3 color = vec3(0.f);
 
 //helper function
 highp float rand_1to1(highp float x ) { 
@@ -119,8 +118,32 @@ float PCSS(sampler2D shadowMap, vec4 coords, float bias){
     return ans/float(NUM_SAMPLES);
 }
 
+float getBlend(vec3 sphere1, float r1, vec3 sphere2, float r2, vec3 pos){
+    vec3 s1Tos2 = sphere2 - sphere1;
+    vec3 s1ToPos = pos - sphere1;
+    float l2 = dot(s1Tos2,s1Tos2);
+    float l = sqrt(l2);
+    vec3 s1Sin = cross(s1Tos2,s1ToPos);
+    float h2 = dot(s1Sin,s1Sin)/l2;
+
+    float s1_2 = r1*r1 - h2;
+    float s2_2 = r2*r2 - h2;
+    float s1 = sqrt(s1_2);
+    float s2 = sqrt(s2_2);
+
+    float s3_2 = dot(s1ToPos,s1ToPos) - h2;
+    float s3 = sqrt(s3_2);
+    if(dot(s1Tos2,s1ToPos)<0)s3 = -s3;
+
+    float u = 0.5;
+    if((s1+s2-l)>0.01) u = (s3+s2-l)/(s1+s2-l);
+    u = clamp(u,0,1);
+    return u;
+}
+
 float calVisibility(vec3 norm, vec3 ltDir){
     int first = -1;
+    int second = -1;
     for(int i = 0;i<4;++i){
         vec3 toSphere = u_sphere[i] - fs_pos.xyz;
         float l2 = dot(toSphere,toSphere);
@@ -129,74 +152,34 @@ float calVisibility(vec3 norm, vec3 ltDir){
         if(inSphere){
             if(first == -1){
                 first = i;
+            }
+            else{
+                second = i;
                 break;
             }
         }
     }
+    //first case
     if(first==-1)return 1.f;
+        
+    //second case
     vec4 ltClip = fs_ltClip[first];
     vec3 ndc = ltClip.xyz / ltClip.w;//to NDC
     vec3 screen = ndc*0.5f + vec3(0.5f);//to screen space
     float bias = calBias(norm, ltDir);
     vec4 coords = vec4(screen,1.0);
-    return max(PCSS(u_depth[first],coords,bias),0.2f);
-
-    // int first = -1;
-    // int second = -1;
-    // for(int i = 0;i<4;++i){
-    //     vec3 toSphere = u_sphere[i] - fs_pos.xyz;
-    //     float l2 = dot(toSphere,toSphere);
-    //     float r2 = u_radius[i] * u_radius[i];
-    //     bool inSphere = r2 > l2;
-    //     if(inSphere){
-    //         if(first == -1){
-    //             first = i;
-    //         }
-    //         else if(second == -1){
-    //             second = i;
-    //             break;
-    //         }
-    //     }
-    // }
-    // vec3 c[4] = {vec3(1,0,0),vec3(0,1,0),vec3(0,0,1),vec3(1,1,0)};
-    // //first case
-    // if(first==-1)return 1.f;
+    float f1 = max(PCSS(u_depth[first],coords,bias*(u_radius[first]/u_radius[0])),0.2);
+    if(second==-1)return f1;
     
-    // vec4 ltClip = fs_ltClip[first];
-    // vec3 ndc = ltClip.xyz / ltClip.w;//to NDC
-    // vec3 screen = ndc*0.5f + vec3(0.5f);//to screen space
-    // float bias = calBias(norm, ltDir);
-    // vec4 coords = vec4(screen,1.0);
+    //third case
+    float u = getBlend(u_sphere[first],u_radius[first],u_sphere[second],u_radius[second],fs_pos.xyz);
     
-    // //second case
-    // float f1 = max(PCSS(u_depth[first],coords,bias),0.5);
-    // //color = c[first];
-    // return f1;
-    // if(second==-1)return f1;
-    
-    // //third case
-    // vec3 diff = u_sphere[second] - u_sphere[first];
-    // vec3 nomDiff = fs_pos.xyz - u_sphere[first];
-    // float nom = nomDiff.x;
-    // float denom = diff.x;
-    // // if(denom<EPS){
-    // //     nom = nomDiff.y;
-    // //     denom = diff.y;
-    // //     if(denom<EPS){
-    // //         nom = diff.z;
-    // //         denom = diff.z;
-    // //     }
-    // // }
-    // float u = clamp(abs(nom/denom),0.f,1.f);
-    
-    // ltClip = fs_ltClip[second];
-    // ndc = ltClip.xyz / ltClip.w;//to NDC
-    // screen = ndc*0.5f + vec3(0.5f);//to screen space
-    // coords = vec4(screen,1.0);
-
-    // float f2 = max(PCSS(u_depth[second],coords,bias),0.2);
-    // color = mix(c[second],c[first],u);
-    // return mix(f2,f1,u);    
+    ltClip = fs_ltClip[second];
+    ndc = ltClip.xyz / ltClip.w;//to NDC
+    screen = ndc*0.5f + vec3(0.5f);//to screen space
+    coords = vec4(screen,1.0);
+    float f2 = max(PCSS(u_depth[second],coords,bias*(u_radius[second]/u_radius[0])),0.2);
+    return mix(f1,f2,u);    
 }
 
 void main()
@@ -207,12 +190,4 @@ void main()
     float lambert = dot(wi,N);
     vec3 color = texture2D(u_texture,fs_uv).rgb * lambert * visibility;
     out_color = vec4(color,1.0);
-    // int i = 2;
-    // vec3 toSphere = u_sphere[i] - fs_pos.xyz;
-    // float l2 = dot(toSphere,toSphere);
-    // float r2 = u_radius[i] * u_radius[i];
-    // color = vec3((r2-l2)/l2);
-    //color = color * visibility * lambert;
-    //out_color = vec4(color,1.0);
-    //out_color = vec4(vec3(gl_FragCoord.z),1.0);
 }
