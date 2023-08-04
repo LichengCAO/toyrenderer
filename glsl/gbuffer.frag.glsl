@@ -19,7 +19,11 @@ in vec4 fs_pos;
 in vec2 fs_uv;
 in vec3 fs_norm;
 
-out vec4 out_color;
+//https://www.coder.work/article/6773005
+layout(location = 0) out vec4 directLight;
+layout(location = 1) out vec4 worldNorm;
+layout(location = 2) out vec4 worldPos;
+layout(location = 3) out vec4 depth;
 
 #define NUM_SAMPLES 20
 #define BLOCKER_SEARCH_NUM_SAMPLES NUM_SAMPLES
@@ -55,6 +59,7 @@ float calBias(vec3 norm,vec3 ltDir){
     float bias = max(normalBias, 0.005);
     return bias;
 }
+
 //sample
 vec2 poissonDisk[NUM_SAMPLES];
 void poissonDiskSamples( const in vec2 randomSeed ) {
@@ -200,5 +205,8 @@ void main()
     float visibility = calVisibility(N,wi);
     float lambert = dot(wi,N);
     vec3 color = texture2D(u_texture,fs_uv).rgb * lambert * visibility;
-    out_color = vec4(color,1.0);
+    directLight = vec4(color,1.0);
+    worldNorm = vec4(N,1.0);
+    worldPos = fs_pos;
+    depth = vec4(vec3(gl_FragCoord.z),1.0);
 }

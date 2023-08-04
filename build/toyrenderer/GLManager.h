@@ -68,7 +68,9 @@ public:
 	Screen* addScreen();
 	Plane* addPlane();
 	Texture* addTexture(const char* texFile);
-	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, unsigned int texNum = 1);
+	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, bool depthBuffer = false);
+	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, const std::vector<TextureType>& outputTex);
+	FrameBuffer* addGBuffer(unsigned int width, unsigned int height);
 	Pass* addPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&,
 		FrameBuffer* frameBuf = nullptr,bool forceClear = false);
 	ShadowedPass* addShadowedPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&,

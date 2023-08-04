@@ -19,7 +19,8 @@ protected:
 	bool m_generateFBO;
 	bool m_generateRBO;
 public:
-	FrameBuffer(unsigned int width,unsigned int height,unsigned int texNum = 1);
+	FrameBuffer(unsigned int width,unsigned int height,TextureType type = COLOR);
+	FrameBuffer(unsigned int width, unsigned int height, const std::vector<TextureType>& outputTex);
 	virtual ~FrameBuffer();
 	static void useDefaultBuffer();
 	static void clearBuffer();

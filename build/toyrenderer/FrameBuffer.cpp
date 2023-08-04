@@ -2,17 +2,20 @@
 unsigned int FrameBuffer::u_height;
 unsigned int FrameBuffer::u_width;
 
-FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, unsigned int texNum)
+FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, TextureType type)
+	:FrameBuffer(width, height, std::vector<TextureType>{type})
+{}
+FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, const std::vector<TextureType>& outputTex)
 	: m_width(width), m_height(height), m_FBO(0), m_depthRBO(0),
-	//m_outputTex(std::vector<std::unique_ptr<Texture>>(texNum,std::make_unique<Texture>(m_width,m_height))), invalid
 	m_generateFBO(false), m_generateRBO(false)
 {
 	std::cout << "generate framebuffer: " << m_width << "x" << m_height << std::endl;
 	glGenFramebuffers(1, &m_FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
+
 	
 	//output texture
-	GLenum drawBuffers[] = { 
+	GLenum drawBuffers[] = {
 		GL_COLOR_ATTACHMENT0,
 		GL_COLOR_ATTACHMENT1,
 		GL_COLOR_ATTACHMENT2,
@@ -22,20 +25,26 @@ FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, unsigned int t
 		GL_COLOR_ATTACHMENT6,
 		GL_COLOR_ATTACHMENT7
 	};
-	for (int i = 0;i < texNum;++i) {
-		m_outputTex.push_back(std::make_unique<Texture>(m_width, m_height));
-		auto&& tex = m_outputTex[i];
-		glFramebufferTexture(GL_FRAMEBUFFER, drawBuffers[i], tex->m_bufId, 0);
-	}
 
-	//depth buffer
-	bool renderDepthToTex = (texNum == 0);
-	if (renderDepthToTex) {
-		m_outputTex.push_back(std::make_unique<Texture>(m_width, m_height, true));
-		auto&& depthTex = m_outputTex[0];
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthTex->m_bufId, 0);
+	bool hasDepthTex = false;
+	int attachId = 0;
+	for (auto type : outputTex) {
+		if (type == DEPTH) {
+			std::unique_ptr<Texture> uPtr = std::make_unique<Texture>(m_width, m_height, DEPTH);
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, uPtr->m_bufId, 0);
+			m_outputTex.push_back(std::move(uPtr));
+			hasDepthTex = true;
+		}
+		else {
+			std::unique_ptr<Texture> uPtr = std::make_unique<Texture>(m_width, m_height, type);
+			glFramebufferTexture(GL_FRAMEBUFFER, drawBuffers[attachId], uPtr->m_bufId, 0);
+			m_outputTex.push_back(std::move(uPtr));
+			++attachId;
+		}
 	}
-	else {
+	
+	//depth buffer
+	if (!hasDepthTex) {
 		glGenRenderbuffers(1, &m_depthRBO);
 		m_generateRBO = true;
 		glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
@@ -46,11 +55,12 @@ FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, unsigned int t
 
 	// Sets the color output of the fragment shader to be stored in GL_COLOR_ATTACHMENT0,
 	// which we previously set to m_renderedTexture
-	if(texNum>0)glDrawBuffers(texNum, drawBuffers);
+	if (attachId > 0)glDrawBuffers(attachId, drawBuffers);
 	else {
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 	}
+
 	m_generateFBO = true;
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
@@ -71,6 +81,7 @@ FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, unsigned int t
 	useDefaultBuffer();
 	std::cout << std::endl;
 }
+
 FrameBuffer::~FrameBuffer() {
 	if (m_generateFBO) {
 		m_generateFBO = false;
@@ -97,15 +108,17 @@ void FrameBuffer::resize(unsigned int width, unsigned int height) {
 	for (auto&& tex : m_outputTex) {
 		tex->resize(width, height);
 	}
-	glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
+	if (m_generateRBO) {
+		glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
+	}
 }
 //https://blog.csdn.net/defence006/article/details/73550551
 void FrameBuffer::useBuffer() {
 	glViewport(0, 0, m_width, m_height);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
 	glEnable(GL_DEPTH_TEST);
-	bool isDepthBuffer = !m_generateRBO;
+	bool isDepthBuffer = !m_generateRBO && m_outputTex.size()==1;
 	if (isDepthBuffer)glCullFace(GL_FRONT);
 	else glCullFace(GL_BACK);
 }

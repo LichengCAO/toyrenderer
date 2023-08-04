@@ -4,6 +4,12 @@
 #include <iostream>
 #include <vector>
 class FrameBuffer;
+enum TextureType {
+	COLOR,
+	NORMAL,
+	POSITION,
+	DEPTH,
+};
 class Texture
 {
 protected:	
@@ -11,10 +17,11 @@ protected:
 	int m_width;
 	int m_height;
 	bool m_generated;
-	unsigned int m_bufId;	
+	unsigned int m_bufId;
+	TextureType m_type;
 public:
 	Texture(const char* imgFile);
-	Texture(unsigned int width, unsigned int height, bool depthTex = false);
+	Texture(unsigned int width, unsigned int height, TextureType type = COLOR);
 	virtual ~Texture();
 	void useTexture(unsigned int slot = 0);
 	void resize(unsigned int width, unsigned int height);

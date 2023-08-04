@@ -71,6 +71,7 @@ void GLManager::resize(unsigned int width, unsigned int height) {
 	FrameBuffer::u_width = width;
 	FrameBuffer::u_height = height;
 }
+
 ShaderProgram* GLManager::addShader(const char* vertFile, const char* fragFile, ShaderType type) {
 	int shaderId = m_shaders.size();
 	ShaderProgram* res = nullptr;
@@ -103,24 +104,28 @@ ShaderProgram* GLManager::addShader(const char* vertFile, const char* fragFile, 
 	}
 	return res;
 }
+
 Mesh* GLManager::addMesh(const char* objFile) {
 	std::unique_ptr<Mesh> uPtr = std::make_unique<Mesh>(objFile);
 	Mesh* res = uPtr.get();
 	m_meshes.push_back(std::move(uPtr));
 	return res;
 }
+
 Screen* GLManager::addScreen() {
 	std::unique_ptr<Screen> screen = std::make_unique<Screen>();
 	Screen* res = screen.get();
 	m_meshes.push_back(std::move(screen));
 	return res;
 }
+
 Plane* GLManager::addPlane() {
 	std::unique_ptr<Plane> uPtr = std::make_unique<Plane>();
 	Plane* res = uPtr.get();
 	m_meshes.push_back(std::move(uPtr));
 	return res;
 }
+
 Texture* GLManager::addTexture(const char* texFile) {
 	bool loaded = m_loadedTextures.find(texFile) != m_loadedTextures.end();
 	if (loaded) {
@@ -134,12 +139,24 @@ Texture* GLManager::addTexture(const char* texFile) {
 	m_meshTextures.push_back(std::move(tex));
 	return res;
 }
-FrameBuffer* GLManager::addFrameBuffer(unsigned int width, unsigned int height, unsigned int texNum) {
-	std::unique_ptr<FrameBuffer> frameBuf = std::make_unique<FrameBuffer>(width, height, texNum);
+
+FrameBuffer* GLManager::addFrameBuffer(unsigned int width, unsigned int height, bool depthBuffer) {
+	TextureType type = depthBuffer ? DEPTH : COLOR;
+	std::unique_ptr<FrameBuffer> frameBuf = std::make_unique<FrameBuffer>(width, height, type);
 	FrameBuffer* res = frameBuf.get();
 	m_framebuffers.push_back(std::move(frameBuf));
 	return res;
 }
+FrameBuffer* GLManager::addFrameBuffer(unsigned int width, unsigned int height, const std::vector<TextureType>& outputTex) {
+	std::unique_ptr<FrameBuffer> frameBuf = std::make_unique<FrameBuffer>(width, height, outputTex);
+	FrameBuffer* res = frameBuf.get();
+	m_framebuffers.push_back(std::move(frameBuf));
+	return res;
+}
+FrameBuffer* GLManager::addGBuffer(unsigned int width, unsigned int height) {
+	return addFrameBuffer(width, height, { COLOR,NORMAL,POSITION,DEPTH });
+}
+
 Pass* GLManager::addPass(const Camera* camera, Drawable* drawable, ShaderProgram* shader, const std::vector<TextureInfo>& texInfo,
 	FrameBuffer* framebuffer,bool forceClear) {
 	//if the pass is first pass we need to clear the buffer
@@ -152,6 +169,7 @@ Pass* GLManager::addPass(const Camera* camera, Drawable* drawable, ShaderProgram
 	m_passes.push_back(std::move(pass));
 	return res;
 }
+
 ShadowedPass* GLManager::addShadowedPass(const Camera* camera, 
 	Drawable* drawable, ShaderProgram* shader, 
 	const std::vector<TextureInfo>& texInfo,
@@ -268,6 +286,7 @@ void GLManager::paintGL() {
 	glfwSwapBuffers(m_window);
 	glfwPollEvents();
 }
+
 //update shader uniform u_time, u_ltDir, u_ltViewProj
 void GLManager::updateShaderUnif() {
 	glm::mat4 ltViewProj = m_ltCamera.getViewProj();
@@ -297,9 +316,11 @@ void GLManager::setupPass() {
 	ShaderProgram* PCSS = addShader("E:/GitStorage/openGL/glsl/PCSS.vert.glsl", "E:/GitStorage/openGL/glsl/PCSS.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* CSM = addShader("E:/GitStorage/openGL/glsl/CSM.vert.glsl", "E:/GitStorage/openGL/glsl/CSM.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* CSM_debug = addShader("E:/GitStorage/openGL/glsl/CSM_debug.vert.glsl", "E:/GitStorage/openGL/glsl/CSM_debug.frag.glsl", SURFACE_SHADER);
+	ShaderProgram* gBufferShader = addShader("E:/GitStorage/openGL/glsl/gbuffer.vert.glsl", "E:/GitStorage/openGL/glsl/gbuffer.frag.glsl", SURFACE_SHADER);
+
 	Texture* planeTex = addTexture("E:/GitStorage/openGL/texture/plane.bmp");
 	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
-	FrameBuffer* framebuffer = addFrameBuffer(m_width*2, m_height*2,0);//create depth texture with 0
+	FrameBuffer* framebuffer = addFrameBuffer(m_width*2, m_height*2,true);//create depth texture with 0
 
 	plane->setScale(glm::vec3(150.f));
 	plane->setRotation(glm::vec3(-90, 0, 0));
@@ -316,7 +337,7 @@ void GLManager::setupPass() {
 	FrameBuffer* shadowBuffer[4];
 	FrameBuffer* debugBuffer[4];
 	for (int i = 0;i < 4;++i) {
-		shadowBuffer[i] = addFrameBuffer(shadowTexWidth, shadowTexHeight, 0);
+		shadowBuffer[i] = addFrameBuffer(shadowTexWidth, shadowTexHeight, true);
 		Camera* ltCamera = m_dirLight.getLightCamera(i);
 		addPass(ltCamera, mario, shadow, emptyTex, shadowBuffer[i]);
 		addPass(ltCamera, plane, shadow, emptyTex, shadowBuffer[i]);
@@ -333,6 +354,8 @@ void GLManager::setupPass() {
 		shadowMap.push_back({ u_depth,shadowBuffer[i]->getOutputTex() });
 	}
 
+	FrameBuffer* gbuffer = addGBuffer(m_width, m_height);
+
 	std::vector<TextureInfo> marioTexInfo = shadowMap;
 	marioTexInfo.push_back({ "u_texture",marioTex });
 	addPass(&m_camera, mario, CSM, marioTexInfo);
@@ -340,6 +363,9 @@ void GLManager::setupPass() {
 	std::vector<TextureInfo> planeTexInfo = shadowMap;
 	planeTexInfo.push_back({ "u_texture", planeTex });
 	addPass(&m_camera, plane, CSM, planeTexInfo);
+
+	addPass(&m_camera, mario, gBufferShader, marioTexInfo,gbuffer);
+	addPass(&m_camera, plane, gBufferShader, planeTexInfo,gbuffer);
 
 	//std::vector<TextureInfo> marioTexInfo = shadowMap;
 	//marioTexInfo.push_back({ "u_texture",marioTex });
