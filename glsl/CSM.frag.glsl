@@ -144,6 +144,7 @@ float getBlend(vec3 sphere1, float r1, vec3 sphere2, float r2, vec3 pos){
 float calVisibility(vec3 norm, vec3 ltDir){
     int first = -1;
     int second = -1;
+    int third = -1;
     for(int i = 0;i<4;++i){
         vec3 toSphere = u_sphere[i] - fs_pos.xyz;
         float l2 = dot(toSphere,toSphere);
@@ -153,8 +154,10 @@ float calVisibility(vec3 norm, vec3 ltDir){
             if(first == -1){
                 first = i;
             }
-            else{
+            else if(second == -1){
                 second = i;
+            }else{
+                third = i;
                 break;
             }
         }
@@ -172,14 +175,23 @@ float calVisibility(vec3 norm, vec3 ltDir){
     if(second==-1)return f1;
     
     //third case
-    float u = getBlend(u_sphere[first],u_radius[first],u_sphere[second],u_radius[second],fs_pos.xyz);
-    
+    float u12 = getBlend(u_sphere[first],u_radius[first],u_sphere[second],u_radius[second],fs_pos.xyz);
     ltClip = fs_ltClip[second];
     ndc = ltClip.xyz / ltClip.w;//to NDC
     screen = ndc*0.5f + vec3(0.5f);//to screen space
     coords = vec4(screen,1.0);
     float f2 = max(PCSS(u_depth[second],coords,bias*(u_radius[second]/u_radius[0])),0.2);
-    return mix(f1,f2,u);    
+    if(third == -1)return mix(f1,f2,u12);    
+
+    //fourth case
+    float u13 = getBlend(u_sphere[first],u_radius[first],u_sphere[third],u_radius[third],fs_pos.xyz);
+    float u23 = getBlend(u_sphere[second],u_radius[second],u_sphere[third],u_radius[third],fs_pos.xyz);
+    ltClip = fs_ltClip[third];
+    ndc = ltClip.xyz / ltClip.w;//to NDC
+    screen = ndc*0.5f + vec3(0.5f);//to screen space
+    coords = vec4(screen,1.0);
+    float f3 = max(PCSS(u_depth[third],coords,bias*(u_radius[third]/u_radius[0])),0.2);
+    return mix(mix(f1,f2,u12),mix(f2,f3,u23),u13);
 }
 
 void main()

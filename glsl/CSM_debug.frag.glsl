@@ -146,6 +146,7 @@ float getBlend(vec3 sphere1, float r1, vec3 sphere2, float r2, vec3 pos){
 float calVisibility(vec3 norm, vec3 ltDir){
     int first = -1;
     int second = -1;
+    int third = -1;
     for(int i = 0;i<4;++i){
         vec3 toSphere = u_sphere[i] - fs_pos.xyz;
         float l2 = dot(toSphere,toSphere);
@@ -158,6 +159,9 @@ float calVisibility(vec3 norm, vec3 ltDir){
             else if(second == -1){
                 second = i;
                 //break;
+            }else{
+                third = i;
+                break;
             }
         }
     }
@@ -186,7 +190,13 @@ float calVisibility(vec3 norm, vec3 ltDir){
 
     float f2 = max(PCSS(u_depth[second],coords,bias*(u_radius[second]/u_radius[0])),0.2);
     color = mix(c[first],c[second],u);
-    return mix(f1,f2,u);    
+    if(third == -1)return mix(f1,f2,u);
+
+    float u13 = getBlend(u_sphere[first],u_radius[first],u_sphere[third],u_radius[third],fs_pos.xyz);
+    float u23 = getBlend(u_sphere[second],u_radius[second],u_sphere[third],u_radius[third],fs_pos.xyz);
+    vec3 color2 = mix(c[second],c[third],u23);
+    color = mix(color,color2,u13);
+    return mix(f1,f2,u);
 }
 
 void main()
