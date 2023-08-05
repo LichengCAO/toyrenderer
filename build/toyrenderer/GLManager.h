@@ -67,6 +67,7 @@ public:
 	Mesh* addMesh(const char* objFile);
 	Screen* addScreen();
 	Plane* addPlane();
+	Cube* addCube();
 	Texture* addTexture(const char* texFile);
 	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, bool depthBuffer = false);
 	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, const std::vector<TextureType>& outputTex);

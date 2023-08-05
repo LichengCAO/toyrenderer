@@ -20,10 +20,11 @@ in vec2 fs_uv;
 in vec3 fs_norm;
 
 //https://www.coder.work/article/6773005
-layout(location = 0) out vec4 directLight;
-layout(location = 1) out vec4 worldNorm;
-layout(location = 2) out vec4 worldPos;
-layout(location = 3) out vec4 depth;
+layout(location = 0) out vec4 o_directLt;
+layout(location = 1) out vec4 o_norm;
+layout(location = 2) out vec4 o_pos;
+layout(location = 3) out vec4 o_depth;//near_clip - > far_clip
+layout(location = 4) out vec4 o_albedo;
 
 #define NUM_SAMPLES 20
 #define BLOCKER_SEARCH_NUM_SAMPLES NUM_SAMPLES
@@ -32,9 +33,12 @@ layout(location = 3) out vec4 depth;
 #define EPS 1e-3
 #define PI 3.141592653589793
 #define PI2 6.283185307179586
+#define INV_PI 0.31830988618
 //#define BIAS_A 0.25
 
+const vec3 LIGHT_INTENSITY = vec3(20.f);
 const float BIAS_A = 0.25f;
+const float SHADOW_VISIBILITY = 0.f;
 
 //helper function
 highp float rand_1to1(highp float x ) { 
@@ -77,7 +81,6 @@ void poissonDiskSamples( const in vec2 randomSeed ) {
     angle += ANGLE_STEP;
   }
 }
-
 //PCSS
 float findBlocker( sampler2D shadowMap,  vec2 uv, float curDepth ) {
     poissonDiskSamples(uv);
@@ -121,7 +124,6 @@ float PCSS(sampler2D shadowMap, vec4 coords, float bias){
     }
     return ans/float(NUM_SAMPLES);
 }
-
 float getBlend(vec3 sphere1, float r1, vec3 sphere2, float r2, vec3 pos){
     vec3 s1Tos2 = sphere2 - sphere1;
     vec3 s1ToPos = pos - sphere1;
@@ -175,7 +177,7 @@ float calVisibility(vec3 norm, vec3 ltDir){
     vec3 screen = ndc*0.5f + vec3(0.5f);//to screen space
     float bias = calBias(norm, ltDir);
     vec4 coords = vec4(screen,1.0);
-    float f1 = max(PCSS(u_depth[first],coords,bias*(u_radius[first]/u_radius[0])),0.2);
+    float f1 = max(PCSS(u_depth[first],coords,bias*(u_radius[first]/u_radius[0])),SHADOW_VISIBILITY);
     if(second==-1)return f1;
     
     //third case
@@ -184,7 +186,7 @@ float calVisibility(vec3 norm, vec3 ltDir){
     ndc = ltClip.xyz / ltClip.w;//to NDC
     screen = ndc*0.5f + vec3(0.5f);//to screen space
     coords = vec4(screen,1.0);
-    float f2 = max(PCSS(u_depth[second],coords,bias*(u_radius[second]/u_radius[0])),0.2);
+    float f2 = max(PCSS(u_depth[second],coords,bias*(u_radius[second]/u_radius[0])),SHADOW_VISIBILITY);
     if(third == -1)return mix(f1,f2,u12);    
 
     //fourth case
@@ -194,19 +196,26 @@ float calVisibility(vec3 norm, vec3 ltDir){
     ndc = ltClip.xyz / ltClip.w;//to NDC
     screen = ndc*0.5f + vec3(0.5f);//to screen space
     coords = vec4(screen,1.0);
-    float f3 = max(PCSS(u_depth[third],coords,bias*(u_radius[third]/u_radius[0])),0.2);
+    float f3 = max(PCSS(u_depth[third],coords,bias*(u_radius[third]/u_radius[0])),SHADOW_VISIBILITY);
     return mix(mix(f1,f2,u12),mix(f2,f3,u23),u13);
+}
+vec3 calBRDF(vec3 wi, vec3 wo){
+    return texture2D(u_texture,fs_uv).rgb * INV_PI;
 }
 
 void main()
 {
     vec3 wi = -u_ltDir;
     vec3 N = normalize(fs_norm);
-    float visibility = calVisibility(N,wi);
+    vec3 Li = LIGHT_INTENSITY * calVisibility(N,wi);
     float lambert = dot(wi,N);
-    vec3 color = texture2D(u_texture,fs_uv).rgb * lambert * visibility;
-    directLight = vec4(color,1.0);
-    worldNorm = vec4(N,1.0);
-    worldPos = fs_pos;
-    depth = vec4(vec3(gl_FragCoord.z),1.0);
+    vec3 BRDF = calBRDF(vec3(0.f),vec3(0.f));
+    vec3 color = BRDF * lambert * Li;
+    
+    //https://blog.csdn.net/fatcat123/article/details/103861403
+    o_depth = vec4(1.0/gl_FragCoord.w);
+    o_directLt = vec4(color,1.0);
+    o_norm = vec4(N,0.0);
+    o_pos = fs_pos;
+    o_albedo = vec4(texture2D(u_texture,fs_uv).rgb,1.f);
 }

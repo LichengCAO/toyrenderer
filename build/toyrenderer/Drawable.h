@@ -68,3 +68,13 @@ public:
 	Mesh(const char* objFile);
 	void draw(ShaderProgram* shader)override;
 };
+
+class Cube :
+	public Transform, public Drawable 
+{
+protected:
+	virtual void create()override;
+public:
+	Cube();
+	virtual void draw(ShaderProgram* shader)override;
+};

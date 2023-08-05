@@ -39,6 +39,7 @@ Texture::Texture(unsigned int width,unsigned int height, TextureType type)
 	glBindTexture(GL_TEXTURE_2D, m_bufId);
 	std::cout << "create empty texture: " << m_width << "x" << m_height;
 	switch (type) {
+	//https://blog.csdn.net/afei__/article/details/96158388
 	case COLOR:
 	{
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -77,6 +78,16 @@ Texture::Texture(unsigned int width,unsigned int height, TextureType type)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		std::cout << " to store depth" << std::endl;
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, m_width, m_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, (void*)0);
+		break;
+	}
+	case HDR:
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		std::cout << " to store light intensity" << std::endl;
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_FLOAT, (void*)0);
 		break;
 	}
 	default:
@@ -129,6 +140,11 @@ void Texture::resize(unsigned int width, unsigned int height) {
 		case DEPTH:
 		{
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, m_width, m_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, (void*)0);
+			break;
+		}
+		case HDR:
+		{
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_FLOAT, (void*)0);
 			break;
 		}
 		default:

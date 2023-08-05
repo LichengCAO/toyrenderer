@@ -9,6 +9,7 @@ enum TextureType {
 	NORMAL,
 	POSITION,
 	DEPTH,
+	HDR
 };
 class Texture
 {

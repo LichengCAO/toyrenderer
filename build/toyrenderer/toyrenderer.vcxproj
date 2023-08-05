@@ -22,6 +22,7 @@
     <ClCompile Include="..\..\3rdparty\src\glad.c" />
     <ClCompile Include="..\..\3rdparty\src\tiny_obj_loader.cc" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Cube.cpp" />
     <ClCompile Include="DirectLight.cpp" />
     <ClCompile Include="Drawable.cpp" />
     <ClCompile Include="FrameBuffer.cpp" />
