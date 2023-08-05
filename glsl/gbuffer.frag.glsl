@@ -36,7 +36,7 @@ layout(location = 4) out vec4 o_albedo;
 #define INV_PI 0.31830988618
 //#define BIAS_A 0.25
 
-const vec3 LIGHT_INTENSITY = vec3(20.f);
+const vec3 LIGHT_INTENSITY = vec3(3.f);
 const float BIAS_A = 0.25f;
 const float SHADOW_VISIBILITY = 0.f;
 
@@ -61,7 +61,7 @@ float calBias(vec3 norm,vec3 ltDir){
     float biasB = 1.0 - abs(dot(norm, ltDir));
     float normalBias = 0.045 * biasA * biasB;
     float bias = max(normalBias, 0.005);
-    return bias;
+    return bias*0.2;
 }
 
 //sample
@@ -169,7 +169,7 @@ float calVisibility(vec3 norm, vec3 ltDir){
         }
     }
     //first case
-    if(first==-1)return 1.f;
+    if(first==-1)return SHADOW_VISIBILITY;
         
     //second case
     vec4 ltClip = fs_ltClip[first];

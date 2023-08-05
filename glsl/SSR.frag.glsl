@@ -20,7 +20,8 @@ out vec4 out_color;
 #define INV_TWO_PI 0.15915494309
 
 const float MARCH_STEP = 0.1f;
-const int MAX_STEP = 50;
+const int MAX_STEP = 100;
+const float DEPTH_BIAS = 0.2f;
 
 
 //helper function
@@ -55,7 +56,7 @@ vec3 getDirectLight(vec2 uv){
 vec3 getBRDF(vec3 wi,vec3 wo, vec4 wPos){
     //diffuse
     vec2 uv = getUV(wPos);
-    vec3 albedo = sampler2D(u_albedo,uv).xyz;
+    vec3 albedo = texture2D(u_albedo,uv).xyz;
     return albedo * INV_PI;
 }
 mat3 tangentToWorld(vec3 worldNorm){
@@ -89,10 +90,13 @@ vec3 cosImportanceSample(vec2 rand, out float pdf){
 bool rayMarch(vec4 p, vec3 dir, out vec4 res){
     res = p;
     vec4 stepVec = vec4(dir*MARCH_STEP,0.f);
+    res += stepVec;
     for(int i = 0;i<MAX_STEP;++i){
         vec2 curUV = getUV(res);
-        if(curUV.x<0.f||curUV>1.f||curUV.y<0.f||curUV.y>1.f)break;
-        if((getDepth(curUV)+EPS)<getDepth(res))return true;
+        if(curUV.x<0.f||curUV.x>1.f||curUV.y<0.f||curUV.y>1.f)break;
+        float curDepth = getDepth(res);
+        float sceneDepth = getDepth(curUV);
+        if((sceneDepth+EPS)<curDepth && (curDepth - sceneDepth) < DEPTH_BIAS)return true;
         res += stepVec;
     }
     return false;
@@ -105,6 +109,7 @@ void main()
     float pdf = 1.f;
     vec3 dir = tangentToWorld(wNorm) * cosImportanceSample(randVec2(fs_uv),pdf);
     vec3 ltSum = getDirectLight(fs_uv);
+    //ltSum = vec3(0.f);
     
     vec3 wo = vec3(0);//wPos to camera
     vec3 wi = dir;
@@ -115,7 +120,7 @@ void main()
         vec3 hitNorm = getNorm(hitUV);
         
         vec3 indirectLt = getDirectLight(hitUV);//I assume only diffuse material will send indirect light
-        ltSum += getBRDF(wi0,wo0,wPos) * dot(dir,wNorm) * indirectLt / pdf;
+        ltSum += getBRDF(wi,wo,wPos)  * indirectLt /* / pdf * dot(dir,wNorm) */;
     }
     //HDR, gamma
     ltSum = ltSum/(vec3(1.0) + ltSum);

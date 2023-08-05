@@ -320,20 +320,21 @@ void GLManager::setupPass() {
 	Mesh* mario = addMesh("E:/GitStorage/openGL/obj/wahoo.obj");
 	Screen* screen = addScreen();
 	Plane* plane = addPlane();
-	Cube* cube = addCube();
-	Plane* planes[4];
+	//Cube* cube = addCube();
+	Cube* planes[4];
 	for (int i = 0;i < 4;++i) {
-		planes[i] = addPlane();
+		planes[i] = addCube();
 	}
+	float wallWidth = 20;
+	float wallHeight = -4.f;
+	float wallRad = 5.f;
 	float angle[] = { 0,90,180,270 };
-	glm::vec3 wallScale(20.f,10.f,1.f);
-	float wallHeight = 6.f;
-	float wallRad = 20.f;
+	glm::vec3 wallScale(wallWidth,10.f,1.f);
 	glm::vec3 poses[] = {
-		glm::vec3(0,wallHeight,wallRad),
-		glm::vec3(wallRad,wallHeight,0),
-		glm::vec3(0,wallHeight,-wallRad), 
-		glm::vec3(-wallRad,wallHeight,0),
+		glm::vec3(-wallWidth/2,wallHeight,wallRad),
+		glm::vec3(wallRad,wallHeight,wallWidth / 2),
+		glm::vec3(wallWidth / 2,wallHeight,-wallRad),
+		glm::vec3(-wallRad,wallHeight,-wallWidth / 2),
 	};
 	
 	//create shaders
@@ -342,12 +343,16 @@ void GLManager::setupPass() {
 	ShaderProgram* CSM = addShader("E:/GitStorage/openGL/glsl/CSM.vert.glsl", "E:/GitStorage/openGL/glsl/CSM.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* CSM_debug = addShader("E:/GitStorage/openGL/glsl/CSM_debug.vert.glsl", "E:/GitStorage/openGL/glsl/CSM_debug.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* gBufferShader = addShader("E:/GitStorage/openGL/glsl/gbuffer.vert.glsl", "E:/GitStorage/openGL/glsl/gbuffer.frag.glsl", SURFACE_SHADER);
+	ShaderProgram* SSR = addShader("E:/GitStorage/openGL/glsl/SSR.vert.glsl", "E:/GitStorage/openGL/glsl/SSR.frag.glsl", POST_SHADER);
+	ShaderProgram* shadowCaster = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
 
-	Texture* planeTex = addTexture("E:/GitStorage/openGL/texture/plane.bmp");
+	Texture* greenTex = addTexture("E:/GitStorage/openGL/texture/green.bmp");
 	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
+	Texture* whiteTex = addTexture("E:/GitStorage/openGL/texture/white.bmp");
 
 	//create framebuffers
 	FrameBuffer* framebuffer = addFrameBuffer(m_width*2, m_height*2,true);//create depth texture with 0
+	FrameBuffer* gbuffer = addGBuffer(m_width, m_height);
 
 	plane->setScale(glm::vec3(150.f));
 	plane->setRotation(glm::vec3(-90, 0, 0));
@@ -361,21 +366,18 @@ void GLManager::setupPass() {
 
 	//setup shadowmapping pass
 	std::vector<TextureInfo> emptyTex;
-	
-	ShaderProgram* shadow = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
-	shadow = debugShader;
-	unsigned int shadowTexWidth = m_width;
-	unsigned int shadowTexHeight = m_width;
+	unsigned int shadowTexWidth = m_width * 2;
+	unsigned int shadowTexHeight = m_width * 2;
 
 	FrameBuffer* shadowBuffer[4];
 	FrameBuffer* debugBuffer[4];
 	for (int i = 0;i < 4;++i) {
 		shadowBuffer[i] = addFrameBuffer(shadowTexWidth, shadowTexHeight, true);
 		Camera* ltCamera = m_dirLight.getLightCamera(i);
-		addPass(ltCamera, mario, shadow, emptyTex, shadowBuffer[i]);
-		addPass(ltCamera, plane, shadow, emptyTex, shadowBuffer[i]);
-		for (int j = 0;j < 4;++j) {
-			addPass(ltCamera, planes[j], shadow, emptyTex, shadowBuffer[i]);
+		addPass(ltCamera, mario, shadowCaster, emptyTex, shadowBuffer[i]);
+		addPass(ltCamera, plane, shadowCaster, emptyTex, shadowBuffer[i]);
+		for (int j = 1;j < 3;++j) {
+			addPass(ltCamera, planes[j], shadowCaster, emptyTex, shadowBuffer[i]);
 		}
 	}
 	//for (int i = 0;i < 4;++i) {
@@ -396,41 +398,33 @@ void GLManager::setupPass() {
 		shadowMap.push_back({ u_depth,shadowBuffer[i]->getOutputTex() });
 	}
 
-	FrameBuffer* gbuffer = addGBuffer(m_width, m_height);
+	
 
 	std::vector<TextureInfo> marioTexInfo = shadowMap;
-	marioTexInfo.push_back({ "u_texture",marioTex });
-	addPass(&m_camera, mario, CSM_debug, marioTexInfo);
-
+	marioTexInfo.push_back({ "u_texture", whiteTex });
 	std::vector<TextureInfo> planeTexInfo = shadowMap;
-	planeTexInfo.push_back({ "u_texture", planeTex });
-	addPass(&m_camera, plane, CSM_debug, planeTexInfo);
-	for (int i = 0;i < 4;++i) {
-		addPass(&m_camera, planes[i], debugShader, planeTexInfo);
-	}
-	addPass(&m_camera, cube, debugShader, planeTexInfo);
+	planeTexInfo.push_back({ "u_texture", greenTex });
+
+	//addPass(&m_camera, mario, CSM_debug, marioTexInfo);
+	//addPass(&m_camera, plane, CSM_debug, marioTexInfo);
+	//addPass(&m_camera, mario, CSM, marioTexInfo);
+	//addPass(&m_camera, plane, CSM, marioTexInfo);
 
 	addPass(&m_camera, mario, gBufferShader, marioTexInfo,gbuffer);
 	addPass(&m_camera, plane, gBufferShader, planeTexInfo,gbuffer);
-
-
-
-	//std::vector<TextureInfo> marioTexInfo = shadowMap;
-	//marioTexInfo.push_back({ "u_texture",marioTex });
-	//addPass(&m_camera, mario, CSM_debug, marioTexInfo);
-
-	//std::vector<TextureInfo> planeTexInfo = shadowMap;
-	//planeTexInfo.push_back({ "u_texture", planeTex });
-	//addPass(&m_camera, plane, CSM_debug, planeTexInfo);
-
-	////add Pass4
-	//std::vector<TextureInfo> texInfo4;
-	//texInfo4.push_back({ "u_texture", planeTex });
-	//auto shadowedPass2 = addShadowedPass(&m_camera, plane, PCSS, texInfo4);
-	//shadowedPass2->addShadowMap({ "u_depth",framebuffer->getOutputTex() });
+	for (int j = 1;j < 3;++j) {
+		addPass(&m_camera, planes[j], gBufferShader, planeTexInfo,gbuffer);
+	}
 
 
 	//setup post shading pass
-
-
+	std::vector<TextureInfo> gBufferTex = {
+		{"u_directLt",gbuffer->getOutputTex(0)},
+		{"u_norm",gbuffer->getOutputTex(1)},
+		{"u_pos",gbuffer->getOutputTex(2)},
+		{"u_depth",gbuffer->getOutputTex(3)},
+		{"u_albedo",gbuffer->getOutputTex(4)}
+	};
+	addPass(&m_camera, screen, SSR, gBufferTex);
+	//addPass(&m_camera, mario, debugShader , marioTexInfo);
 }

@@ -53,7 +53,7 @@ float calBias(vec3 norm,vec3 ltDir){
     float biasB = 1.0 - abs(dot(norm, ltDir));
     float normalBias = 0.045 * biasA * biasB;
     float bias = max(normalBias, 0.005);
-    return bias;
+    return bias*0.2;
 }
 //sample
 vec2 poissonDisk[NUM_SAMPLES];

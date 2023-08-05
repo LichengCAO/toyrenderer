@@ -89,7 +89,7 @@ void DirectLight::setLightCameraWithBound() {
 		float radius = m_sphereBound[i].radius;
 		OrthoCamera* ltCamera = m_ltCamera[i].get();
 		ltCamera->width = ltCamera->height = radius*2;
-		ltCamera->far_clip = radius*5;
+		ltCamera->far_clip = radius*6;
 		ltCamera->MoveTo(m_sphereBound[i].center - m_ltDir * radius*3.f);
 		ltCamera->LookAlong(m_ltDir);
 	}
