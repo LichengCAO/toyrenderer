@@ -1,12 +1,17 @@
 #include "Pass.h"
 FrameBuffer* Pass::u_bufferInUse = nullptr;
+Pass::Pass()
+	:m_camera(nullptr), m_drawable(nullptr), m_shader(nullptr),
+	m_frameBuf(nullptr), m_forceClear(false)
+{}
 Pass::Pass(const Camera* camera,
 	Drawable* drawable, 
 	ShaderProgram* shader, 
 	const std::vector<TextureInfo>& texInfo,
-	FrameBuffer* frameBuf,bool forceClear)
+	FrameBuffer* frameBuf,  bool forceClear)
 	:m_camera(camera),m_drawable(drawable),m_shader(shader),
-	m_texInfos(texInfo),m_frameBuf(frameBuf),m_forceClear(forceClear)
+	m_texInfos(texInfo),
+	m_frameBuf(frameBuf),m_forceClear(forceClear)
 {}
 bool Pass::needClearBuffer()const {
 	return (m_forceClear || Pass::u_bufferInUse != m_frameBuf);
@@ -14,9 +19,9 @@ bool Pass::needClearBuffer()const {
 void Pass::run() {
 	//bind to assigned buffer
 	if (m_frameBuf != nullptr) {
-		m_frameBuf->useBuffer();
+		m_frameBuf->renderBuffer();
 	}else {
-		FrameBuffer::useDefaultBuffer();
+		FrameBuffer::renderDefaultBuffer();
 	}
 	//check if we need to clear buffer
 	if (needClearBuffer()) {
@@ -38,6 +43,45 @@ void Pass::run() {
 	//draw meshes to framebuffer assigned
 	m_drawable->draw(m_shader);
 }
+
+HizPass::HizPass(Screen* screen, ShaderProgram* hiz, GBuffer* frameBuf)
+	:Pass(), m_GBuffer(frameBuf)
+{
+	m_drawable = screen;
+	m_shader = hiz;
+	m_frameBuf = frameBuf;
+	m_forceClear = true;
+	m_texInfos = std::vector<TextureInfo>();
+	m_texInfos.push_back({ "u_texture",m_GBuffer->getViewDepth() });
+}
+void HizPass::run() {
+	//update u_bufferInUse
+	Pass::u_bufferInUse = m_frameBuf;
+	//set texture slot for the shader
+	for (int i = 0;i < m_texInfos.size();++i) {
+		TextureInfo& tex = m_texInfos[i];
+		m_shader->setUnifInt(tex.name, i);
+		tex.tex->useTexture(i);
+	}
+
+	unsigned int minSize = 1;
+	unsigned int curWidth = m_GBuffer->getWidth();
+	unsigned int curHeight = m_GBuffer->getHeight();
+	//https://zhuanlan.zhihu.com/p/552432586
+	int numLevels = 1 + (int)floorf(log2f(fmaxf(curWidth, curHeight)));
+	for (int i = 1;i < numLevels;++i) {
+		m_GBuffer->renderDepthBuffer(i);
+		FrameBuffer::clearBuffer();
+		m_shader->setUnifInt("u_mipLevel", i);
+		m_shader->setUnifInt("u_prevWidth", curWidth);
+		m_shader->setUnifInt("u_prevHeight", curHeight);
+		curWidth = std::max(curWidth / 2, minSize);
+		curHeight = std::max(curHeight / 2, minSize);
+		m_drawable->draw(m_shader);
+	}	
+}
+
+
 
 float ShadowedPass::calBiasA(const Texture* shadowTex){
 	unsigned int shadowMapSize = std::max(shadowTex->getHeight(), shadowTex->getWidth());
@@ -66,10 +110,10 @@ void ShadowedPass::addShadowMap(const TextureInfo& shadowMap) {
 void ShadowedPass::run(){
 	//bind to assigned buffer
 	if (m_frameBuf != nullptr) {
-		m_frameBuf->useBuffer();
+		m_frameBuf->renderBuffer();
 	}
 	else {
-		FrameBuffer::useDefaultBuffer();
+		FrameBuffer::renderDefaultBuffer();
 	}
 	//check if we need to clear buffer
 	if (needClearBuffer()) {

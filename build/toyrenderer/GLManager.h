@@ -69,14 +69,12 @@ public:
 	Plane* addPlane();
 	Cube* addCube();
 	Texture* addTexture(const char* texFile);
-	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, bool depthBuffer = false);
+	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, TextureType type = COLOR);
 	FrameBuffer* addFrameBuffer(unsigned int width, unsigned int height, const std::vector<TextureType>& outputTex);
-	FrameBuffer* addGBuffer(unsigned int width, unsigned int height);
+	GBuffer* addGBuffer(unsigned int width, unsigned int height);
 	Pass* addPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&,
-		FrameBuffer* frameBuf = nullptr,bool forceClear = false);
-	ShadowedPass* addShadowedPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&,
 		FrameBuffer* frameBuf = nullptr, bool forceClear = false);
-	
+	HizPass* addHizPass(Screen*, ShaderProgram*, GBuffer* frameBuf);
 	void debugLog()const;
 	friend void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 	friend void mouse_callback(GLFWwindow* window, double xpos, double ypos);

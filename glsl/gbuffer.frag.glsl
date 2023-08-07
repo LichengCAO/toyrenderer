@@ -23,8 +23,8 @@ in vec3 fs_norm;
 layout(location = 0) out vec4 o_directLt;
 layout(location = 1) out vec4 o_norm;
 layout(location = 2) out vec4 o_pos;
-layout(location = 3) out vec4 o_depth;//near_clip - > far_clip
-layout(location = 4) out vec4 o_albedo;
+layout(location = 4) out vec4 o_depth;//near_clip - > far_clip
+layout(location = 3) out vec4 o_albedo;
 
 #define NUM_SAMPLES 20
 #define BLOCKER_SEARCH_NUM_SAMPLES NUM_SAMPLES

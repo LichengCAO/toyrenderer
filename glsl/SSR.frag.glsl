@@ -20,8 +20,9 @@ out vec4 out_color;
 #define INV_TWO_PI 0.15915494309
 
 const float MARCH_STEP = 0.1f;
-const int MAX_STEP = 100;
+const int MAX_STEP = 50;
 const float DEPTH_BIAS = 0.2f;
+const int SAMPLE_COUNT = 1;
 
 
 //helper function
@@ -107,21 +108,23 @@ void main()
     vec4 wPos = getPos(fs_uv);
     vec3 wNorm = getNorm(fs_uv);
     float pdf = 1.f;
-    vec3 dir = tangentToWorld(wNorm) * cosImportanceSample(randVec2(fs_uv),pdf);
-    vec3 ltSum = getDirectLight(fs_uv);
-    //ltSum = vec3(0.f);
+    mat3 rotMat = tangentToWorld(wNorm);
     
-    vec3 wo = vec3(0);//wPos to camera
-    vec3 wi = dir;
     
-    vec4 hitPos = vec4(0.f);
-    if(rayMarch(wPos,dir,hitPos)){
-        vec2 hitUV = getUV(hitPos);
-        vec3 hitNorm = getNorm(hitUV);
-        
-        vec3 indirectLt = getDirectLight(hitUV);//I assume only diffuse material will send indirect light
-        ltSum += getBRDF(wi,wo,wPos)  * indirectLt /* / pdf * dot(dir,wNorm) */;
+    vec3 indirectLt = vec3(0.f);
+    
+    for(int i = 0;i<SAMPLE_COUNT;++i){
+        vec3 wo = vec3(0);//wPos to camera
+        vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv+vec2(i)),pdf);//wPos to hitPos
+        vec4 hitPos = vec4(0.f);
+        if(rayMarch(wPos,wi,hitPos)){
+            vec2 hitUV = getUV(hitPos);
+            //vec3 hitNorm = getNorm(hitUV);
+            indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light
+        }
     }
+    indirectLt = indirectLt/SAMPLE_COUNT;
+    vec3 ltSum = getDirectLight(fs_uv) + indirectLt;
     //HDR, gamma
     ltSum = ltSum/(vec3(1.0) + ltSum);
     ltSum = pow(ltSum,vec3(1.0/2.2));

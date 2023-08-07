@@ -24,7 +24,9 @@ protected:
 	bool needClearBuffer()const;
 public:
 	static FrameBuffer* u_bufferInUse;//shared by all child class https://blog.csdn.net/weixin_43356308/article/details/116371338
-	Pass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&, FrameBuffer* frameBuf = nullptr, bool forceClear = false);
+	Pass();
+	Pass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&, 
+		FrameBuffer* frameBuf = nullptr, bool forceClear = false);
 	virtual void run();
 };
 
@@ -40,3 +42,12 @@ public:
 	virtual void run()override;
 };
 
+class HizPass
+	:public Pass
+{
+private:
+	GBuffer* m_GBuffer;
+public:
+	HizPass(Screen*, ShaderProgram*, GBuffer* frameBuf);
+	virtual void run()override;
+};

@@ -12,5 +12,8 @@ PostShader::PostShader(const char* vertFile, const char* fragFile)
 	addUniform("u_albedo");
 	addUniform("u_viewProj");
 	addUniform("u_ltDir");
+	addUniform("u_mipLevel");
+	addUniform("u_prevWidth");
+	addUniform("u_prevHeight");
 	std::cout << std::endl;
 }
