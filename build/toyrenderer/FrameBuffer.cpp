@@ -1,6 +1,16 @@
 #include "FrameBuffer.h"
 unsigned int FrameBuffer::u_height;
 unsigned int FrameBuffer::u_width;
+const GLenum BUFFER_ATTACHMENT[] = {
+	GL_COLOR_ATTACHMENT0,
+	GL_COLOR_ATTACHMENT1,
+	GL_COLOR_ATTACHMENT2,
+	GL_COLOR_ATTACHMENT3,
+	GL_COLOR_ATTACHMENT4,
+	GL_COLOR_ATTACHMENT5,
+	GL_COLOR_ATTACHMENT6,
+	GL_COLOR_ATTACHMENT7
+};
 FrameBuffer::FrameBuffer()
 	: m_width(0), m_height(0), m_FBO(0), m_depthRBO(0), m_generateFBO(false), m_generateRBO(false)
 {}
@@ -15,16 +25,6 @@ FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, const std::vec
 	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
 
 	//output texture
-	GLenum drawBuffers[] = {
-		GL_COLOR_ATTACHMENT0,
-		GL_COLOR_ATTACHMENT1,
-		GL_COLOR_ATTACHMENT2,
-		GL_COLOR_ATTACHMENT3,
-		GL_COLOR_ATTACHMENT4,
-		GL_COLOR_ATTACHMENT5,
-		GL_COLOR_ATTACHMENT6,
-		GL_COLOR_ATTACHMENT7
-	};
 	bool hasDepthTex = false;
 	int attachId = 0;
 	for (auto type : outputTex) {
@@ -36,7 +36,7 @@ FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, const std::vec
 		}
 		else {
 			std::unique_ptr<Texture> uPtr = std::make_unique<Texture>(m_width, m_height, type);
-			glFramebufferTexture(GL_FRAMEBUFFER, drawBuffers[attachId], uPtr->m_bufId, 0);
+			glFramebufferTexture(GL_FRAMEBUFFER, BUFFER_ATTACHMENT[attachId], uPtr->m_bufId, 0);
 			m_outputTex.push_back(std::move(uPtr));
 			++attachId;
 		}
@@ -53,7 +53,7 @@ FrameBuffer::FrameBuffer(unsigned int width, unsigned int height, const std::vec
 
 	// Sets the color output of the fragment shader to be stored in GL_COLOR_ATTACHMENT0,
 	// which we previously set to m_renderedTexture
-	if (attachId > 0)glDrawBuffers(attachId, drawBuffers);
+	if (attachId > 0)glDrawBuffers(attachId, BUFFER_ATTACHMENT);
 	else {
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
@@ -147,25 +147,16 @@ GBuffer::GBuffer(unsigned int width, unsigned int height)
 	m_generateFBO = true;
 
 	//output texture
-	GLenum drawBuffers[] = {
-		GL_COLOR_ATTACHMENT0,
-		GL_COLOR_ATTACHMENT1,
-		GL_COLOR_ATTACHMENT2,
-		GL_COLOR_ATTACHMENT3,
-		GL_COLOR_ATTACHMENT4,
-		GL_COLOR_ATTACHMENT5,
-		GL_COLOR_ATTACHMENT6,
-		GL_COLOR_ATTACHMENT7
-	};
+
 	bool hasDepthTex = false;
 	std::vector<TextureType> outputTex{HDR,NORMAL,POSITION,COLOR,VIEW_DEPTH};
 	for (int i = 0;i < 4;++i) {
 		std::unique_ptr<Texture> uPtr = std::make_unique<Texture>(m_width, m_height, outputTex[i]);
-		glFramebufferTexture(GL_FRAMEBUFFER, drawBuffers[i], uPtr->getBuf(), 0);
+		glFramebufferTexture(GL_FRAMEBUFFER, BUFFER_ATTACHMENT[i], uPtr->getBuf(), 0);
 		m_outputTex.push_back(std::move(uPtr));
 	}
 	std::unique_ptr<Texture> uPtr = std::make_unique<Texture>(m_width, m_height, VIEW_DEPTH,true);
-	glFramebufferTexture(GL_FRAMEBUFFER, drawBuffers[4], uPtr->getBuf(), 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, BUFFER_ATTACHMENT[4], uPtr->getBuf(), 0);
 	m_outputTex.push_back(std::move(uPtr));
 
 	//depth buffer
@@ -177,7 +168,7 @@ GBuffer::GBuffer(unsigned int width, unsigned int height)
 
 	// Sets the color output of the fragment shader to be stored in GL_COLOR_ATTACHMENT0,
 	// which we previously set to m_renderedTexture
-	glDrawBuffers(5, drawBuffers);
+	glDrawBuffers(5, BUFFER_ATTACHMENT);
 	
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
@@ -210,6 +201,7 @@ void GBuffer::renderDepthBuffer(unsigned int mipmap) {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
 	m_hizTexture = true;
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, getViewDepth()->getBuf(), mipmap);
+	glDrawBuffers(1, BUFFER_ATTACHMENT);//important, tell buffer to render to only this texture
 	glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthRBO);
@@ -223,24 +215,15 @@ void GBuffer::renderBuffer() {
 	if (m_hizTexture) {
 		//rebind textures
 		int attachId = 0;
-		GLenum drawBuffers[] = {
-			GL_COLOR_ATTACHMENT0,
-			GL_COLOR_ATTACHMENT1,
-			GL_COLOR_ATTACHMENT2,
-			GL_COLOR_ATTACHMENT3,
-			GL_COLOR_ATTACHMENT4,
-			GL_COLOR_ATTACHMENT5,
-			GL_COLOR_ATTACHMENT6,
-			GL_COLOR_ATTACHMENT7
-		};
 		for (auto&& tex : m_outputTex) {
-			glFramebufferTexture(GL_FRAMEBUFFER, drawBuffers[attachId], tex->getBuf(), 0);
+			glFramebufferTexture(GL_FRAMEBUFFER, BUFFER_ATTACHMENT[attachId], tex->getBuf(), 0);
 			++attachId;
 		}
 		m_hizTexture = false;
 		glBindRenderbuffer(GL_RENDERBUFFER, m_depthRBO);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthRBO);
+		glDrawBuffers(5, BUFFER_ATTACHMENT);//important, tell buffer to render to only this texture
 	}
 	glCullFace(GL_BACK);
 }

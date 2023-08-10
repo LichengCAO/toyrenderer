@@ -33,6 +33,7 @@ void Pass::run() {
 	if (m_camera != nullptr) {
 		m_shader->setUnifMat4("u_viewProj", m_camera->getViewProj());
 		m_shader->setUnifVec3("u_cameraPos", m_camera->eye);
+		m_shader->setUnifMat4("u_view", m_camera->getView());
 	}
 	//set texture slot for the shader
 	for (int i = 0;i < m_texInfos.size();++i) {

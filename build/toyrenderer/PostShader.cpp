@@ -15,5 +15,7 @@ PostShader::PostShader(const char* vertFile, const char* fragFile)
 	addUniform("u_mipLevel");
 	addUniform("u_prevWidth");
 	addUniform("u_prevHeight");
+	addUniform("u_cameraPos");
+	addUniform("u_view");
 	std::cout << std::endl;
 }

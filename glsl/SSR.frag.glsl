@@ -21,7 +21,7 @@ out vec4 out_color;
 
 const float MARCH_STEP = 0.1f;
 const int MAX_STEP = 50;
-const float DEPTH_BIAS = 0.2f;
+const float DEPTH_BIAS = 0.08f;
 const int SAMPLE_COUNT = 1;
 
 
@@ -106,6 +106,10 @@ bool rayMarch(vec4 p, vec3 dir, out vec4 res){
 void main()
 {
     vec4 wPos = getPos(fs_uv);
+    if(wPos == vec4(0.f,0.f,0.f,1.f)){
+        out_color = vec4(getDirectLight(fs_uv),1.0f);
+        return;
+    }
     vec3 wNorm = getNorm(fs_uv);
     float pdf = 1.f;
     mat3 rotMat = tangentToWorld(wNorm);
@@ -119,7 +123,6 @@ void main()
         vec4 hitPos = vec4(0.f);
         if(rayMarch(wPos,wi,hitPos)){
             vec2 hitUV = getUV(hitPos);
-            //vec3 hitNorm = getNorm(hitUV);
             indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light
         }
     }
