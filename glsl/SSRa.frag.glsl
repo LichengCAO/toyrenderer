@@ -21,16 +21,14 @@ out vec4 out_color;
 #define INV_PI 0.31830988618
 #define INV_TWO_PI 0.15915494309
 
-const float MARCH_STEP = 0.1f;
-const int MAX_STEP = 800;
-const float DEPTH_BIAS = 0.01f;
-const float THICinvzNESS_BIAS = 0.05f;
+const int MAX_STEP = 200;
+const float THICKNESS_BIAS = 1.f;
 const int SAMPLE_COUNT = 1;
 
 
 //helper function
 bool outScreen(vec2 uv){
-    return uv.x<0 || uv.x>=1 || uv.y<0 || uv.y>=1;
+    return uv.x<0 || uv.x>1 || uv.y<0 || uv.y>1;
 }
 vec2 getUV(vec4 wPos){
     vec4 clipSpace = u_viewProj * wPos;
@@ -41,7 +39,7 @@ vec2 getUV(vec4 wPos){
 }
 float getDepth(vec2 uv){
     float depth = texture2D(u_depth,uv).r;
-    if (depth < 1e-2 || outScreen(uv)) {
+    if (depth < 1e-2) {
         depth = 1000.0;
     }
     return depth;
@@ -94,20 +92,15 @@ vec3 cosImportanceSample(vec2 rand, out float pdf){
 }
 
 //for pixel space ray march
-float getPerspectiveInterpolate(float u_incoord, float viewSpaceZ0, float viewSpaceZ1){
-    return u_incoord*viewSpaceZ0/(u_incoord*viewSpaceZ0 + (1-u_incoord)*viewSpaceZ1);
+//transform u in 2D screen space to u in 3D world space
+float getPerspectiveInterpolate(float screen_u, float viewSpaceZ0, float viewSpaceZ1){
+    return screen_u*viewSpaceZ0/(screen_u*viewSpaceZ0 + (1-screen_u)*viewSpaceZ1);
 }
 float sqrDist(vec2 a, vec2 b){
     a-=b;
     return dot(a,a);
 }
-bool between(float s, float e, float u){
-    return (s<=u&&u<e) || (e<=u&&u<s);
-}
-bool rayCross(float prevRayDepth, float curRayDepth, float sceneDepth, float zDir){
-    return zDir * (prevRayDepth + zDir * THICinvzNESS_BIAS) < zDir * sceneDepth && zDir * sceneDepth < zDir * curRayDepth;
-}
-vec2 clampEndPosition(vec4 startPos, out vec4 endPos){
+vec2 clampEndPosition(vec4 startPos,in out vec4 endPos){
     vec4 projStart = u_viewProj * startPos;
     vec4 projEnd = u_viewProj * endPos;
     vec2 startUV = (projStart.xy / projStart.w)/2 + vec2(0.5);
@@ -130,11 +123,10 @@ vec2 clampEndPosition(vec4 startPos, out vec4 endPos){
 }
 //https://casual-effects.blogspot.com/2014/08/screen-space-ray-tracing.html
 bool rayMarch(vec4 p, vec3 dir, out vec4 res){
-    float stride = 2.0/800;
-    float jitter = 0.01f;
+    float stride = 1./200;
     vec4 startPos = p;
-    vec4 endPos = p + vec4(dir,0) * 1000.f;
-    //clampEndPosition(startPos, endPos);
+    vec4 endPos = p + vec4(dir,0) * 100.f;
+    clampEndPosition(startPos, endPos);
     vec4 H0 = u_viewProj * startPos;
     vec4 H1 = u_viewProj * endPos;
     float invz0 = 1.0/H0.w, invz1 = 1.0/H1.w;
@@ -148,42 +140,40 @@ bool rayMarch(vec4 p, vec3 dir, out vec4 res){
         P0 = P0.yx;
         P1 = P1.yx;
     }
+    
     float stepDir = sign(delta.x);
     float zDir = sign(H1.w - H0.w);
     float invdx = stepDir / delta.x;
-    float dinvz = (invz1 - invz0) * invdx;
-    vec2 dP = vec2(stepDir,delta.y*invdx);
-    dP *= stride;
-    dinvz *= stride;
-    P0 += dP*jitter;
-    invz0 += dinvz*jitter;
+    float dinvz = (invz1 - invz0) * invdx * stride;
+    vec2 dP = vec2(stepDir,delta.y*invdx) * stride;
+
     float end = P1.x * stepDir;
-    float invz = invz0, stepCnt = 0.0, prevZMinEstimate = H0.w;
-    float prevRayDepth = prevZMinEstimate, curRayDepth = prevZMinEstimate;
-    float sceneDepth = curRayDepth - 100*zDir;
-    bool hit = false;
-    
-    for(vec2 P = P0;
-    ((P.x * stepDir)<=end) && (stepCnt < MAX_STEP) && 
-    (sceneDepth < 999 && prevRayDepth<999 && curRayDepth<999);
-    P += dP, invz+= dinvz, ++stepCnt
-    ){
-        if(rayCross(prevRayDepth, curRayDepth, sceneDepth, zDir)){
-            hit = true;
-            break;
-        }
-        prevRayDepth = prevZMinEstimate;
-        //curRayDepth = 1.0 / (dinvz*0.5 + invz);???
+    float invz = invz0, stepCnt = 0.0, prevRayRecord = H0.w;
+    float curRayDepth = H0.w,sceneDepth = H0.w + 100 * zDir;
+
+    P0 += dP;
+    invz += dinvz;
+    vec2 P = P0;
+    bool rayPassScene = false;
+    for(;
+    (P.x * stepDir)<=end && stepCnt < MAX_STEP 
+    && sceneDepth < 999 && curRayDepth<999
+    &&!rayPassScene
+    ;P += dP, invz+= dinvz, ++stepCnt){
         curRayDepth = 1.0 / invz;
-        prevZMinEstimate = curRayDepth;
+        
         vec2 hitPixel = permute? P.yx : P;
         sceneDepth = getDepth(hitPixel);
+
+        rayPassScene = (curRayDepth - sceneDepth) * zDir > 0;
     }
-    if(!hit)return false;
     float u = (invz-invz0)/(invz1-invz0);
     float t = getPerspectiveInterpolate(u, H0.w, H1.w);
     res = mix(startPos,endPos,t);
-    return true;
+    return  rayPassScene
+            && (curRayDepth - sceneDepth) * zDir < THICKNESS_BIAS   //to avoid ray pass wall
+            && sqrDist(P,P0)>0.001 //to avoid ray hit at start point
+    ;
 }
 
 void main()
@@ -197,28 +187,21 @@ void main()
     float pdf = 1.f;
     mat3 rotMat = tangentToWorld(wNorm);
     
-    
     vec3 indirectLt = vec3(0.f);
-    
     for(int i = 0;i<SAMPLE_COUNT;++i){
         vec3 wo = vec3(0);//wPos to camera
         vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv+vec2(i)),pdf);//wPos to hitPos
         vec4 hitPos = vec4(0.f);
-        vec3 V = normalize(u_cameraPos - wPos.xyz);
-        wi = reflect(-V,vec3(0,1,0));
-        //wi = normalize(vec3(0,1,-1));
+        //vec3 V = normalize(u_cameraPos - wPos.xyz);wi = reflect(-V,vec3(0,1,0));
         if(rayMarch(wPos,wi,hitPos)){
             vec2 hitUV = getUV(hitPos);
-            //if(outScreen(hitUV))continue;
-            //vec3 hitNorm = getNorm(hitUV);
-            //indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light
-            indirectLt = vec3(1.f);
+            indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light
         }
     }
     indirectLt = indirectLt/SAMPLE_COUNT;
-    vec3 ltSum =  indirectLt;
+    vec3 ltSum =  getDirectLight(fs_uv) + indirectLt;
     //HDR, gamma
-    // ltSum = ltSum/(vec3(1.0) + ltSum);
-    // ltSum = pow(ltSum,vec3(1.0/2.2));
+    ltSum = ltSum/(vec3(1.0) + ltSum);
+    ltSum = pow(ltSum,vec3(1.0/2.2));
     out_color = vec4(ltSum,1.0);
 }

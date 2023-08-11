@@ -8,6 +8,7 @@ uniform sampler2D u_pos;
 uniform sampler2D u_albedo;
 uniform mat4 u_viewProj;
 uniform vec3 u_ltDir;
+uniform vec3 u_cameraPos;
 
 in vec2 fs_uv;
 
@@ -20,10 +21,9 @@ out vec4 out_color;
 #define INV_TWO_PI 0.15915494309
 
 const float MARCH_STEP = 0.1f;
-const int MAX_STEP = 50;
-const float DEPTH_BIAS = 0.08f;
+const int MAX_STEP = 1000;
+const float DEPTH_BIAS = 0.01f;
 const int SAMPLE_COUNT = 1;
-
 
 //helper function
 
@@ -87,17 +87,23 @@ vec3 cosImportanceSample(vec2 rand, out float pdf){
     pdf = z * INV_PI;
     return vec3(x,y,z);
 }
-
+bool between(float s,float e,float u){
+    return (s<u&&u<e)||(e<u&&u<s);
+}
 bool rayMarch(vec4 p, vec3 dir, out vec4 res){
     res = p;
     vec4 stepVec = vec4(dir*MARCH_STEP,0.f);
-    res += stepVec;
+    res += vec4(dir,0);
+    float prevRayDepth = getDepth(p);
+    float curRayDepth = getDepth(res);
     for(int i = 0;i<MAX_STEP;++i){
         vec2 curUV = getUV(res);
         if(curUV.x<0.f||curUV.x>1.f||curUV.y<0.f||curUV.y>1.f)break;
         float curDepth = getDepth(res);
         float sceneDepth = getDepth(curUV);
-        if((sceneDepth+EPS)<curDepth && (curDepth - sceneDepth) < DEPTH_BIAS)return true;
+        if(curDepth>999||sceneDepth>999)break;
+        if(between(prevRayDepth,curDepth,sceneDepth))return true;
+        prevRayDepth = curDepth;
         res += stepVec;
     }
     return false;
@@ -120,16 +126,22 @@ void main()
     for(int i = 0;i<SAMPLE_COUNT;++i){
         vec3 wo = vec3(0);//wPos to camera
         vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv+vec2(i)),pdf);//wPos to hitPos
+        vec3 V = normalize(u_cameraPos - wPos.xyz);wi = reflect(-V,vec3(0,1,0));
+        //wi = normalize(vec3(0,2,1));
         vec4 hitPos = vec4(0.f);
         if(rayMarch(wPos,wi,hitPos)){
             vec2 hitUV = getUV(hitPos);
             indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light
+            //indirectLt += vec3(1.f);
         }
     }
     indirectLt = indirectLt/SAMPLE_COUNT;
     vec3 ltSum = getDirectLight(fs_uv) + indirectLt;
+    //ltSum = indirectLt;
     //HDR, gamma
     ltSum = ltSum/(vec3(1.0) + ltSum);
     ltSum = pow(ltSum,vec3(1.0/2.2));
     out_color = vec4(ltSum,1.0);
 }
+
+

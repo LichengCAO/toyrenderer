@@ -228,7 +228,7 @@ int GLManager::initializeGL() {
 	return 0;
 }
 void GLManager::processInput() {
-	float cameraSpeed = 0.5f; // adjust accordingly
+	float cameraSpeed = 1.2f; // adjust accordingly
 	if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(m_window, true);
 	}
