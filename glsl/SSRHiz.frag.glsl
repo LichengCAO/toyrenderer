@@ -8,6 +8,7 @@ uniform sampler2D u_pos;
 uniform sampler2D u_albedo;
 uniform mat4 u_viewProj;
 uniform vec3 u_ltDir;
+uniform vec3 u_cameraPos;
 
 in vec2 fs_uv;
 
@@ -20,16 +21,19 @@ out vec4 out_color;
 #define INV_TWO_PI 0.15915494309
 
 const float MARCH_STEP = 0.1f;
-const int MAX_STEP = 1;
-const float DEPTH_BIAS = 0.2f;
-const int SAMPLE_COUNT = 1;
+const int MAX_STEP = 200;
+const float THICKNESS_BIAS = 1.f;
+const int SAMPLE_COUNT = 16;
 
-const int MAX_LEVEL = 9;
+const int MAX_LEVEL = 3;
 const int MIN_LEVEL = 0;
-const int LEVEL_COUNT = 10;
+const int LEVEL_COUNT = 4;
 
 
 //helper function
+bool outScreen(vec2 uv){
+    return uv.x<0 || uv.x>1 || uv.y<0 || uv.y>1;
+}
 vec2 getUV(vec4 wPos){
     vec4 clipSpace = u_viewProj * wPos;
     vec4 ndc = clipSpace / clipSpace.w;
@@ -92,14 +96,6 @@ vec3 cosImportanceSample(vec2 rand, out float pdf){
 }
 
 //for acceleration
-//screenpos: (uvx, uvy, z in camera space)
-vec3 getScreenPos(vec4 wPos){
-    vec4 clipSpace = u_viewProj * wPos;
-    vec4 ndc = clipSpace / clipSpace.w;
-    vec2 res = ndc.xy;
-    res = res/2.f + vec2(0.5f);
-    return vec3(res,clipSpace.w);
-}
 float getMinDepth(vec2 uv, int level){
     float depth = textureLod(u_depth,uv,level).r;
     if (depth < 1e-2) {
@@ -107,72 +103,105 @@ float getMinDepth(vec2 uv, int level){
     }
     return depth;
 }
-vec2 getCoordCount(int level){
-    return textureSize(u_depth,level);
-}
-vec2 getCoord(vec2 uv, vec2 coordCount){
-    return vec2(floor(uv * coordCount));
-}
-vec3 intersectDepthPlane(vec3 o, vec3 d, float t){
-    return o + d*t;
-}
-vec3 toNextCoord(vec3 o, vec3 d, vec2 coord, vec2 coordCnt, vec2 crossStep, vec2 crossOffset){
-    vec3 intersect = vec3(0.f);
-    vec2 index = coord + crossStep;
-    vec2 boundary = index/ coordCnt;
-    boundary = boundary + crossOffset;
 
-    vec2 delta = boundary - o.xy;
-    delta = delta/d.xy;
-
-    float t = min(delta.x,delta.y);
-    intersect = intersectDepthPlane(o,d,t);
-    return intersect;
+//for pixel space ray march
+//transform u in 2D screen space to u in 3D world space
+float getPerspectiveInterpolate(float screen_u, float viewSpaceZ0, float viewSpaceZ1){
+    return screen_u*viewSpaceZ0/(screen_u*viewSpaceZ0 + (1-screen_u)*viewSpaceZ1);
 }
-
+float sqrDist(vec2 a, vec2 b){
+    a-=b;
+    return dot(a,a);
+}
+vec2 clampEndPosition(vec4 startPos,in out vec4 endPos){
+    vec4 projStart = u_viewProj * startPos;
+    vec4 projEnd = u_viewProj * endPos;
+    vec2 startUV = (projStart.xy / projStart.w)/2 + vec2(0.5);
+    vec2 endUV = (projEnd.xy / projEnd.w)/2 + vec2(0.5);
+    endUV += vec2(sqrDist(startUV,endUV)<0.0001?0.01:0.0);
+    if(outScreen(endUV)){
+        vec2 diff = endUV - startUV;
+        float scale = 1.0;
+        if(abs(diff.x)>abs(diff.y)){
+            scale = diff.x>0?(1-startUV.x)/diff.x:-startUV.x/diff.x;
+        }else{
+            scale = diff.y>0?(1-startUV.y)/diff.y:-startUV.y/diff.y;
+        }
+        float t = getPerspectiveInterpolate(scale,projStart.w,projEnd.w);
+        //scale down endP
+        endPos = mix(startPos,endPos,t);
+        endUV = mix(startUV,endUV,scale);
+    }
+    return endUV;
+}
+//https://casual-effects.blogspot.com/2014/08/screen-space-ray-tracing.html
 bool rayMarch(vec4 p, vec3 dir, out vec4 res){
-    vec3 srnStart = getScreenPos(p);
-    vec3 srnEnd = getScreenPos(p + vec4(dir,0) * 1000.f );
-    vec3 srnDir = (srnEnd - srnStart)/length(srnEnd.xy-srnStart.xy);
-    vec2 crossStep = vec2(srnDir.x>0?1:-1,srnDir.y>0?1:-1);
-    vec2 crossOffset = crossStep/textureSize(u_depth,0)/128;
-    crossStep = clamp(crossStep,vec2(0.f),vec2(1.0));
-    vec3 raySrn = srnStart;
-    float maxTraceX = srnDir.x >=0?(1-srnStart.x)/srnDir.x:-srnStart.x/srnDir.x;
-    float maxTraceY = srnDir.y >=0?(1-srnStart.y)/srnDir.y:-srnStart.y/srnDir.y;
-    float maxTraceDist = min(maxTraceX,maxTraceY);
-    float minZ = srnStart.z;
-    float maxZ = srnStart.z + srnDir.z * maxTraceDist;
-    float deltaZ = (maxZ - minZ);
-
-    vec3 o = raySrn;
-    vec3 d = srnDir * maxTraceDist;
+    float stride = 1./200;
+    vec4 startPos = p;
+    vec4 endPos = p + vec4(dir,0) * 100.f;
+    clampEndPosition(startPos, endPos);
+    vec4 H0 = u_viewProj * startPos;
+    vec4 H1 = u_viewProj * endPos;
+    float inv_z0 = 1.0/H0.w, inv_z1 = 1.0/H1.w;
+    vec2 P0 = H0.xy * inv_z0 * 0.5 + vec2(0.5) , P1 = H1.xy * inv_z1 * 0.5 + vec2(0.5);
+    P1 += vec2((sqrDist(P0,P1)<0.0001)? 0.01 :0.0);
+    vec2 delta = P1 -P0;
+    bool permute = false;
+    if(abs(delta.x)<abs(delta.y)){
+        permute = true;
+        delta = delta.yx;
+        P0 = P0.yx;
+        P1 = P1.yx;
+    }
+    
+    float stepDir = sign(delta.x);
+    float zDir = sign(H1.w - H0.w);
+    float invdx = stepDir / delta.x;
 
     int startLevel = MAX_LEVEL;
     int endLevel = MIN_LEVEL;
-    vec2 startCellCnt = getCoordCount(startLevel);
-    vec2 rayCoord = getCoord(raySrn.xy,startCellCnt);
+    float end = P1.x * stepDir;
+    float inv_z = inv_z0, stepCnt = 0.0, prevRayRecord = H0.w;
+    float curRayDepth = H0.w,sceneDepth = H0.w + 100 * zDir;
 
-    raySrn = toNextCoord(o,d,rayCoord,startCellCnt,crossStep,crossOffset);
     int level = startLevel;
-    int itr = 0;
-    bool isBackward = srnDir.z < 0;
-    while(level>=endLevel && abs(raySrn.z)<=abs(maxZ) && itr < MAX_STEP)
-    {
-        vec2 coordCnt = getCoordCount(level);
-        vec2 prevCoord = getCoord(raySrn.xy,coordCnt);
-        float curMinZ = getMinDepth((prevCoord + vec2(0.5))/coordCnt, level);
-        vec3 tmpRay = ((curMinZ > raySrn.z) && !isBackward) ? intersectDepthPlane(o,d,(curMinZ - minZ)/deltaZ):raySrn;
-        vec2 newCoord = getCoord(tmpRay.xy,coordCnt);
-        float thickness = level == 0? (raySrn.z - curMinZ):0;
-        bool crossed = (isBackward && (curMinZ > raySrn.z)) || (prevCoord != newCoord) || (thickness > MAX_THICKNESS);
-        raySrn = crossed? toNextCoord(o,d,prevCoord,coordCnt,crossStep,crossOffset):tmpRay;
-        level = crossed ? min(MAX_LEVEL, level + 1) : level - 1;
-        ++itr;
+    float dinv_z = (inv_z1 - inv_z0) * invdx * stride;
+    vec2 dP = vec2(stepDir,delta.y*invdx) * stride;
+
+    P0 += dP;
+    inv_z += dinv_z;
+    vec2 P = P0;
+    bool rayPassScene = false;
+    for(;
+    (P.x * stepDir)<=end && stepCnt < MAX_STEP 
+    && sceneDepth < 999 && curRayDepth<999
+    ;P += dP, inv_z+= dinv_z, ++stepCnt){
+        if(level<endLevel)break;
+        curRayDepth = 1.0 / inv_z;
+        
+        vec2 hitPixel = permute? P.yx : P;
+        sceneDepth = getMinDepth(hitPixel,level);
+
+        rayPassScene = (curRayDepth - sceneDepth) * zDir > 0;
+        if(rayPassScene){
+            --level;
+            P -= dP;
+            inv_z -= dinv_z;
+            dP*=0.5f;
+            dinv_z*=0.5f;
+        }else if(level<MAX_LEVEL){
+            ++level;
+            dP*=2.f;
+            dinv_z*=2.f;
+        }
     }
-    float u = (raySrn.z - srnStart.z) / (srnEnd.z - srnStart.z);
-    res = mix(p,p+vec4(dir,0)*1000.f,u);
-    return level < endLevel;
+    float u = (inv_z-inv_z0)/(inv_z1-inv_z0);
+    float t = getPerspectiveInterpolate(u, H0.w, H1.w);
+    res = mix(startPos,endPos,t);
+    return  level<endLevel
+            && (curRayDepth - sceneDepth) * zDir < THICKNESS_BIAS   //to avoid ray pass wall
+            && sqrDist(P,P0)>0.001 //to avoid ray hit at start point
+    ;
 }
 
 void main()
@@ -191,19 +220,18 @@ void main()
     for(int i = 0;i<SAMPLE_COUNT;++i){
         vec3 wo = vec3(0);//wPos to camera
         vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv+vec2(i)),pdf);//wPos to hitPos
-        wi = normalize(vec3(0,1,-1));
+        //vec3 V = normalize(u_cameraPos - wPos.xyz);wi = reflect(-V,vec3(0,1,0));
         vec4 hitPos = vec4(0.f);
         if(rayMarch(wPos,wi,hitPos)){
             vec2 hitUV = getUV(hitPos);
             indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light
-            indirectLt = vec3(1.f);
         }
     }
     indirectLt = indirectLt/SAMPLE_COUNT;
     vec3 ltSum = getDirectLight(fs_uv) + indirectLt;
-    ltSum = indirectLt;
+    //ltSum = indirectLt;
     //HDR, gamma
-    // ltSum = ltSum/(vec3(1.0) + ltSum);
-    // ltSum = pow(ltSum,vec3(1.0/2.2));
+    ltSum = ltSum/(vec3(1.0) + ltSum);
+    ltSum = pow(ltSum,vec3(1.0/2.2));
     out_color = vec4(ltSum,1.0);
 }
