@@ -260,12 +260,14 @@ void GLManager::run() {
 		std::cout << "initialized failed" << std::endl;
 		return;
 	}
-	float curFrame = glfwGetTime();
-	dT = curFrame - lastFrame;
-	lastFrame = curFrame;
+
 	float deg = 0.0f;
+
 	setupPass();
 	while (!glfwWindowShouldClose(m_window)) {
+		float curFrame = glfwGetTime()*10;
+		dT = curFrame - lastFrame;
+		lastFrame = curFrame;
 		processInput();
 		m_dirLight.updateLightCamera();
 		paintGL();
@@ -328,7 +330,7 @@ void GLManager::setupPass() {
 		glm::vec3(wallWidth / 2,wallHeight,-wallRad),
 		glm::vec3(-wallRad,wallHeight,-wallWidth / 2),
 	};
-	plane->setScale(glm::vec3(150.f));
+	plane->setScale(glm::vec3(50.f));
 	plane->setRotation(glm::vec3(-90, 0, 0));
 	plane->setPosition(glm::vec3(0, -4, 0));
 
@@ -350,6 +352,8 @@ void GLManager::setupPass() {
 	ShaderProgram* SSR = addShader("E:/GitStorage/openGL/glsl/SSR.vert.glsl", "E:/GitStorage/openGL/glsl/SSRa.frag.glsl", POST_SHADER);
 	ShaderProgram* accSSR = addShader("E:/GitStorage/openGL/glsl/SSRHiz.vert.glsl", "E:/GitStorage/openGL/glsl/SSRHiz.frag.glsl", POST_SHADER);
 
+	ShaderProgram* filter = addShader("E:/GitStorage/openGL/glsl/SSR.vert.glsl", "E:/GitStorage/openGL/glsl/denoise.frag.glsl", POST_SHADER);
+
 	Texture* greenTex = addTexture("E:/GitStorage/openGL/texture/green.bmp");
 	Texture* marioTex = addTexture("E:/GitStorage/openGL/texture/wahoo.bmp");
 	Texture* whiteTex = addTexture("E:/GitStorage/openGL/texture/white.bmp");
@@ -357,6 +361,7 @@ void GLManager::setupPass() {
 
 	//create framebuffers
 	GBuffer* gbuffer = addGBuffer(m_width, m_height);
+	FrameBuffer* noisyResult = addFrameBuffer(m_width, m_height);
 	//FrameBuffer* hizBuffer = addFrameBuffer(m_width, m_height, VIEW_DEPTH, true);
 	FrameBuffer* shadowBuffer[4];
 	unsigned int shadowTexWidth = m_width * 2;
@@ -416,6 +421,14 @@ void GLManager::setupPass() {
 		{"u_depth",gbuffer->getViewDepth()},
 		{"u_albedo",gbuffer->getAlbedo()}
 	};
-	addPass(&m_camera, screen, accSSR, gBufferTex);
+	//addPass(&m_camera, screen, accSSR, gBufferTex);
+	addPass(&m_camera, screen, accSSR, gBufferTex, noisyResult);
+
+	std::vector<TextureInfo> noisyTex = {
+		{"u_norm",gbuffer->getNormal()},
+		{"u_pos",gbuffer->getPosition()},
+		{"u_texture",noisyResult->getOutputTex()}
+	};
+	addPass(&m_camera, screen, filter, noisyTex);
 	//addPass(&m_camera, screen, SSR, gBufferTex);
 }

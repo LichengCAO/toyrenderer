@@ -9,6 +9,7 @@ uniform sampler2D u_albedo;
 uniform mat4 u_viewProj;
 uniform vec3 u_ltDir;
 uniform vec3 u_cameraPos;
+uniform float u_time;
 
 in vec2 fs_uv;
 
@@ -220,7 +221,7 @@ void main()
     
     for(int i = 0;i<SAMPLE_COUNT;++i){
         vec3 wo = vec3(0);//wPos to camera
-        vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv+vec2(i)),pdf);//wPos to hitPos
+        vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv + vec2(i) + vec2(u_time)),pdf);//wPos to hitPos
         //vec3 V = normalize(u_cameraPos - wPos.xyz);wi = reflect(-V,vec3(0,1,0));
         vec4 hitPos = vec4(0.f);
         if(rayMarch(wPos,wi,hitPos)){
