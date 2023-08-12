@@ -344,9 +344,10 @@ void GLManager::setupPass() {
 	ShaderProgram* CSM = addShader("E:/GitStorage/openGL/glsl/CSM.vert.glsl", "E:/GitStorage/openGL/glsl/CSM.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* CSM_debug = addShader("E:/GitStorage/openGL/glsl/CSM_debug.vert.glsl", "E:/GitStorage/openGL/glsl/CSM_debug.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* gBufferShader = addShader("E:/GitStorage/openGL/glsl/gbuffer.vert.glsl", "E:/GitStorage/openGL/glsl/gbuffer.frag.glsl", SURFACE_SHADER);
-	ShaderProgram* SSR = addShader("E:/GitStorage/openGL/glsl/SSR.vert.glsl", "E:/GitStorage/openGL/glsl/SSRa.frag.glsl", POST_SHADER);
 	ShaderProgram* shadowCaster = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
 	ShaderProgram* hizShader = addShader("E:/GitStorage/openGL/glsl/Hiz.vert.glsl", "E:/GitStorage/openGL/glsl/Hiz.frag.glsl", POST_SHADER);
+	
+	ShaderProgram* SSR = addShader("E:/GitStorage/openGL/glsl/SSR.vert.glsl", "E:/GitStorage/openGL/glsl/SSRa.frag.glsl", POST_SHADER);
 	ShaderProgram* accSSR = addShader("E:/GitStorage/openGL/glsl/SSRHiz.vert.glsl", "E:/GitStorage/openGL/glsl/SSRHiz.frag.glsl", POST_SHADER);
 
 	Texture* greenTex = addTexture("E:/GitStorage/openGL/texture/green.bmp");

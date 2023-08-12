@@ -23,7 +23,7 @@ out vec4 out_color;
 const float MARCH_STEP = 0.1f;
 const int MAX_STEP = 200;
 const float THICKNESS_BIAS = 1.f;
-const int SAMPLE_COUNT = 16;
+const int SAMPLE_COUNT = 1;
 
 const int MAX_LEVEL = 3;
 const int MIN_LEVEL = 0;
@@ -201,6 +201,7 @@ bool rayMarch(vec4 p, vec3 dir, out vec4 res){
     return  level<endLevel
             && (curRayDepth - sceneDepth) * zDir < THICKNESS_BIAS   //to avoid ray pass wall
             && sqrDist(P,P0)>0.001 //to avoid ray hit at start point
+            && !outScreen(P);
     ;
 }
 
