@@ -69,3 +69,28 @@ void Drawable::fillAttrCheck(ShaderProgram* shader)const {
 		}
 	}
 }
+
+void Drawable3D::setRotation(float x, float y, float z) {
+	m_transformation.setRotation(x, y, z);
+}
+void Drawable3D::setPosition(float x, float y, float z) {
+	m_transformation.setPosition(x, y, z);
+}
+void Drawable3D::setScale(float x, float y, float z) {
+	m_transformation.setScale(x, y, z);
+}
+void Drawable3D::setRotation(const glm::vec3& i) {
+	m_transformation.setRotation(i);
+}
+void Drawable3D::setPosition(const glm::vec3& i) {
+	m_transformation.setPosition(i);
+}
+void Drawable3D::setScale(const glm::vec3& i) {
+	m_transformation.setScale(i);
+}
+glm::mat4 Drawable3D::getModel()const {
+	return m_transformation.getModel();
+}
+glm::mat3 Drawable3D::getModelInvTr()const {
+	return m_transformation.getModelInvTr();
+}

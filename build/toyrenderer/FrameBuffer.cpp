@@ -1,6 +1,6 @@
 #include "FrameBuffer.h"
-unsigned int FrameBuffer::u_height;
-unsigned int FrameBuffer::u_width;
+unsigned int FrameBuffer::u_height = 600;
+unsigned int FrameBuffer::u_width = 800;
 const GLenum BUFFER_ATTACHMENT[] = {
 	GL_COLOR_ATTACHMENT0,
 	GL_COLOR_ATTACHMENT1,

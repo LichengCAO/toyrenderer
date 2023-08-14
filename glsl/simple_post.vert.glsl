@@ -1,7 +1,5 @@
 #version 440 core
 
-uniform sampler2D u_texture;
-
 in vec4 vs_pos;
 in vec2 vs_uv;
 

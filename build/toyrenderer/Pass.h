@@ -51,3 +51,17 @@ public:
 	HizPass(Screen*, ShaderProgram*, GBuffer* frameBuf);
 	virtual void run()override;
 };
+
+class TAAPass
+	:public Pass
+{
+private:
+	bool m_useFirstRecord;
+	std::vector<std::unique_ptr<FrameBuffer>> m_recordBuf;
+	glm::mat4 m_prevViewProj;
+	ShaderProgram* m_simplePassShader;
+public:
+	TAAPass(const Camera*, Screen*, ShaderProgram*, ShaderProgram* simplePass,const std::vector<TextureInfo>&, FrameBuffer* frameBuf = nullptr);
+	virtual void run()override;
+};
+

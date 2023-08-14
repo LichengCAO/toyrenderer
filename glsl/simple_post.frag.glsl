@@ -8,6 +8,6 @@ out vec4 out_color;
 
 void main()
 {
-    float albedo = texture(u_texture, fs_uv).r;
-    out_color = vec4(vec3(albedo),1.0);
+    out_color = texture(u_texture, fs_uv);
+    //out_color = vec4(vec3(albedo),1.0);
 }

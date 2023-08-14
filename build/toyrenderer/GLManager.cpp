@@ -182,6 +182,14 @@ HizPass* GLManager::addHizPass(Screen* srn, ShaderProgram* shader, GBuffer* fram
 	return res;
 }
 
+TAAPass* GLManager::addTAAPass(Screen* srn, ShaderProgram* shader, ShaderProgram* simplePass, const std::vector<TextureInfo>& texInfo, FrameBuffer* frameBuf) {
+	//(const Camera*, Screen*, ShaderProgram*, ShaderProgram * simplePass, const std::vector<TextureInfo>&, FrameBuffer * frameBuf = nullptr);
+	std::unique_ptr<TAAPass> uPtr = std::make_unique<TAAPass>(&m_camera, srn, shader, simplePass, texInfo, frameBuf);
+	TAAPass* res = uPtr.get();
+	m_passes.push_back(std::move(uPtr));
+	return res;
+}
+
 void GLManager::debugLog()const {
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
@@ -308,6 +316,7 @@ void GLManager::updateShaderUnif() {
 		}
 	}
 }
+
 void GLManager::setupPass() {
 
 	//create drawables
@@ -348,6 +357,8 @@ void GLManager::setupPass() {
 	ShaderProgram* gBufferShader = addShader("E:/GitStorage/openGL/glsl/gbuffer.vert.glsl", "E:/GitStorage/openGL/glsl/gbuffer.frag.glsl", SURFACE_SHADER);
 	ShaderProgram* shadowCaster = addShader("E:/GitStorage/openGL/glsl/shadow.vert.glsl", "E:/GitStorage/openGL/glsl/shadow.frag.glsl", SHADOW_SHADER);
 	ShaderProgram* hizShader = addShader("E:/GitStorage/openGL/glsl/Hiz.vert.glsl", "E:/GitStorage/openGL/glsl/Hiz.frag.glsl", POST_SHADER);
+	ShaderProgram* simplePost = addShader("E:/GitStorage/openGL/glsl/simple_post.vert.glsl", "E:/GitStorage/openGL/glsl/simple_post.frag.glsl", POST_SHADER);
+	ShaderProgram* TAA = addShader("E:/GitStorage/openGL/glsl/simple_post.vert.glsl", "E:/GitStorage/openGL/glsl/TAA.frag.glsl", POST_SHADER);
 	
 	ShaderProgram* SSR = addShader("E:/GitStorage/openGL/glsl/SSR.vert.glsl", "E:/GitStorage/openGL/glsl/SSRa.frag.glsl", POST_SHADER);
 	ShaderProgram* accSSR = addShader("E:/GitStorage/openGL/glsl/SSRHiz.vert.glsl", "E:/GitStorage/openGL/glsl/SSRHiz.frag.glsl", POST_SHADER);
@@ -362,6 +373,7 @@ void GLManager::setupPass() {
 	//create framebuffers
 	GBuffer* gbuffer = addGBuffer(m_width, m_height);
 	FrameBuffer* noisyResult = addFrameBuffer(m_width, m_height);
+	FrameBuffer* filteredResult = addFrameBuffer(m_width, m_height);
 	//FrameBuffer* hizBuffer = addFrameBuffer(m_width, m_height, VIEW_DEPTH, true);
 	FrameBuffer* shadowBuffer[4];
 	unsigned int shadowTexWidth = m_width * 2;
@@ -421,7 +433,6 @@ void GLManager::setupPass() {
 		{"u_depth",gbuffer->getViewDepth()},
 		{"u_albedo",gbuffer->getAlbedo()}
 	};
-	//addPass(&m_camera, screen, accSSR, gBufferTex);
 	addPass(&m_camera, screen, accSSR, gBufferTex, noisyResult);
 
 	std::vector<TextureInfo> noisyTex = {
@@ -429,6 +440,12 @@ void GLManager::setupPass() {
 		{"u_pos",gbuffer->getPosition()},
 		{"u_texture",noisyResult->getOutputTex()}
 	};
-	addPass(&m_camera, screen, filter, noisyTex);
-	//addPass(&m_camera, screen, SSR, gBufferTex);
+	addPass(&m_camera, screen, filter, noisyTex, filteredResult);
+	std::vector<TextureInfo> filteredTex = {
+		{"u_texture",filteredResult->getOutputTex()},
+		{"u_pos",gbuffer->getPosition()}
+	};
+
+	//addPass(&m_camera, screen, accSSR, gBufferTex, filteredResult);
+	addTAAPass(screen, TAA, simplePost, filteredTex);
 }

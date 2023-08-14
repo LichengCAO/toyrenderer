@@ -34,7 +34,6 @@ public:
 	void debugLog()const;
 	void fillAttrCheck(ShaderProgram* shader)const;//use for debug check if set all vs_...values shader needs
 };
-
 class Screen :
 	public Drawable
 {
@@ -45,8 +44,58 @@ public:
 	virtual void draw(ShaderProgram* shader)override;
 };
 
+//class Plane :
+//	public Drawable, public Transform
+//{
+//protected:
+//	virtual void create()override;
+//public:
+//	Plane();
+//	virtual void draw(ShaderProgram* shader)override;
+//};
+//
+//class Mesh :
+//	public Transform, public Drawable
+//{
+//protected:
+//	std::vector<unsigned int> glIndices;
+//	std::vector<glm::vec4> glPos;
+//	std::vector<glm::vec3> glNor;
+//	std::vector<glm::vec2> glUV;
+//	void create()override;
+//public:
+//	Mesh(const char* objFile);
+//	void draw(ShaderProgram* shader)override;
+//};
+//
+//class Cube :
+//	public Transform, public Drawable 
+//{
+//protected:
+//	virtual void create()override;
+//public:
+//	Cube();
+//	virtual void draw(ShaderProgram* shader)override;
+//};
+
+class Drawable3D :
+	public Drawable
+{
+protected:
+	Transform m_transformation;
+public:
+	void setRotation(float x, float y, float z);
+	void setPosition(float x, float y, float z);
+	void setScale(float x, float y, float z);
+	void setRotation(const glm::vec3& i);
+	void setPosition(const glm::vec3& i);
+	void setScale(const glm::vec3& i);
+	glm::mat4 getModel()const;
+	glm::mat3 getModelInvTr()const;
+};
+
 class Plane :
-	public Drawable, public Transform
+	public Drawable3D
 {
 protected:
 	virtual void create()override;
@@ -56,7 +105,7 @@ public:
 };
 
 class Mesh :
-	public Transform, public Drawable
+	public Drawable3D
 {
 protected:
 	std::vector<unsigned int> glIndices;
@@ -70,7 +119,7 @@ public:
 };
 
 class Cube :
-	public Transform, public Drawable 
+	public Drawable3D
 {
 protected:
 	virtual void create()override;

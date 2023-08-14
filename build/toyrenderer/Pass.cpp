@@ -82,8 +82,6 @@ void HizPass::run() {
 	}	
 }
 
-
-
 float ShadowedPass::calBiasA(const Texture* shadowTex){
 	unsigned int shadowMapSize = std::max(shadowTex->getHeight(), shadowTex->getWidth());
 	unsigned int frustumSize = 0;
@@ -147,4 +145,65 @@ void ShadowedPass::run(){
 	}
 	//draw meshes to framebuffer assigned
 	m_drawable->draw(m_shader);
+}
+
+TAAPass::TAAPass(const Camera* camera, Screen* srn, ShaderProgram* shader, ShaderProgram* simplePass, const std::vector<TextureInfo>& texInfo, FrameBuffer* outputFrame)
+	:Pass(camera,srn,shader,texInfo,outputFrame,true),m_simplePassShader(simplePass)
+{
+	int width = m_frameBuf == nullptr ? FrameBuffer::getDefaultWidth() : m_frameBuf->getWidth();
+	int height = m_frameBuf == nullptr ? FrameBuffer::getDefaultHeight() : m_frameBuf->getHeight();
+	m_recordBuf.push_back(std::make_unique<FrameBuffer>(width, height));
+	m_recordBuf.push_back(std::make_unique<FrameBuffer>(width, height));
+}
+void TAAPass::run() {
+	FrameBuffer* prevFrame = nullptr;
+	FrameBuffer* frameToRecord = nullptr;
+	if (m_useFirstRecord) {
+		frameToRecord = m_recordBuf[0].get();
+		prevFrame = m_recordBuf[1].get();
+	}
+	else {
+		frameToRecord = m_recordBuf[1].get();
+		prevFrame = m_recordBuf[0].get();
+	}
+	frameToRecord->renderBuffer();
+	m_useFirstRecord = !m_useFirstRecord;
+	FrameBuffer::clearBuffer();
+	//set camera information for the shader
+	if (m_camera != nullptr) {
+		m_shader->setUnifMat4("u_viewProj", m_camera->getViewProj());
+		m_shader->setUnifVec3("u_cameraPos", m_camera->eye);
+		m_shader->setUnifMat4("u_view", m_camera->getView());
+		m_shader->setUnifMat4("u_prevViewProj", m_prevViewProj);
+		m_prevViewProj = m_camera->getViewProj();
+	}
+	//set texture slot for the shader
+	for (int i = 0;i < m_texInfos.size();++i) {
+		TextureInfo& tex = m_texInfos[i];
+		m_shader->setUnifInt(tex.name, i);
+		tex.tex->useTexture(i);
+		//std::cout << tex.name << std::endl;
+	}
+	//set prevFrame texture
+	m_shader->setUnifInt("u_prevFrame", m_texInfos.size());
+	prevFrame->getOutputTex()->useTexture(m_texInfos.size()); 
+	//draw meshes to framebuffer assigned
+	m_drawable->draw(m_shader);
+	//bind to assigned buffer
+	if (m_frameBuf != nullptr) {
+		m_frameBuf->renderBuffer();
+	}
+	else {
+		FrameBuffer::renderDefaultBuffer();
+	}
+	//check if we need to clear buffer
+	if (needClearBuffer()) {
+		FrameBuffer::clearBuffer();
+	}
+	//update u_bufferInUse
+	Pass::u_bufferInUse = m_frameBuf;
+	m_simplePassShader->setUnifInt("u_texture", 0);
+	frameToRecord->getOutputTex()->useTexture(0);
+	//draw meshes to framebuffer assigned
+	m_drawable->draw(m_simplePassShader);
 }

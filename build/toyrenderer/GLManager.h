@@ -75,6 +75,7 @@ public:
 	Pass* addPass(const Camera*, Drawable*, ShaderProgram*, const std::vector<TextureInfo>&,
 		FrameBuffer* frameBuf = nullptr, bool forceClear = false);
 	HizPass* addHizPass(Screen*, ShaderProgram*, GBuffer* frameBuf);
+	TAAPass* addTAAPass(Screen*, ShaderProgram*, ShaderProgram*, const std::vector<TextureInfo>&,FrameBuffer* frameBuf=nullptr);
 	void debugLog()const;
 	friend void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 	friend void mouse_callback(GLFWwindow* window, double xpos, double ypos);

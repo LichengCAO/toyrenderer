@@ -18,5 +18,7 @@ PostShader::PostShader(const char* vertFile, const char* fragFile)
 	addUniform("u_cameraPos");
 	addUniform("u_view");
 	addUniform("u_time");
+	addUniform("u_prevViewProj");
+	addUniform("u_prevFrame");
 	std::cout << std::endl;
 }
