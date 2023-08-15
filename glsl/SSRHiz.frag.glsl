@@ -201,7 +201,7 @@ bool rayMarch(vec4 p, vec3 dir, out vec4 res){
     res = mix(startPos,endPos,t);
     return  level<endLevel
             && (curRayDepth - sceneDepth) * zDir < THICKNESS_BIAS   //to avoid ray pass wall
-            && sqrDist(P,P0)>0.001 //to avoid ray hit at start point
+            && sqrDist(P,P0)>0.0001 //to avoid ray hit at start point
             && !outScreen(P);
     ;
 }

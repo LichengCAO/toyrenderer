@@ -21,7 +21,7 @@ out vec4 out_color;
 #define INV_PI 0.31830988618
 #define INV_TWO_PI 0.15915494309
 
-const int MAX_STEP = 200;
+const int MAX_STEP = 400;
 const float THICKNESS_BIAS = 1.f;
 const int SAMPLE_COUNT = 1;
 
@@ -123,7 +123,7 @@ vec2 clampEndPosition(vec4 startPos,in out vec4 endPos){
 }
 //https://casual-effects.blogspot.com/2014/08/screen-space-ray-tracing.html
 bool rayMarch(vec4 p, vec3 dir, out vec4 res){
-    float stride = 1./200;
+    float stride = 1./400;
     vec4 startPos = p;
     vec4 endPos = p + vec4(dir,0) * 100.f;
     clampEndPosition(startPos, endPos);
@@ -172,7 +172,7 @@ bool rayMarch(vec4 p, vec3 dir, out vec4 res){
     res = mix(startPos,endPos,t);
     return  rayPassScene
             && (curRayDepth - sceneDepth) * zDir < THICKNESS_BIAS   //to avoid ray pass wall
-            && sqrDist(P,P0)>0.001 //to avoid ray hit at start point
+            && sqrDist(P,P0)>0.0001 //to avoid ray hit at start point
     ;
 }
 
@@ -192,7 +192,7 @@ void main()
         vec3 wo = vec3(0);//wPos to camera
         vec3 wi = rotMat * cosImportanceSample(randVec2(fs_uv+vec2(i)),pdf);//wPos to hitPos
         vec4 hitPos = vec4(0.f);
-        //vec3 V = normalize(u_cameraPos - wPos.xyz);wi = reflect(-V,vec3(0,1,0));
+        vec3 V = normalize(u_cameraPos - wPos.xyz);wi = reflect(-V,vec3(0,1,0));
         if(rayMarch(wPos,wi,hitPos)){
             vec2 hitUV = getUV(hitPos);
             indirectLt += (getBRDF(wi,wo,wPos) * getDirectLight(hitUV) / pdf * dot(wi,wNorm));//I assume only diffuse material will send indirect light

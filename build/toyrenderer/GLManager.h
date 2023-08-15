@@ -56,6 +56,11 @@ protected:
 	int initializeGL();
 	void processInput();
 	void paintGL();
+
+	void setupCSM(bool debug);
+	void setupSSR();
+	void setupSSRHiz();
+	void setupTAA();
 public:
 	static GLManager& getInstance() {
 		static GLManager myGL;
